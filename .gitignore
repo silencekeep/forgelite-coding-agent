@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+.env
+.env.*
+!.env.example
+*.coding-agent-tmp
+recordings/
+*.mp4
