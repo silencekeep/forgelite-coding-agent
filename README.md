@@ -64,4 +64,8 @@ python -m unittest discover -s tests -v
 python -m compileall -q src
 ```
 
+测试集不仅覆盖单个工具，还包含“空工作区 → 创建实现、测试和 README → 执行测试 → 收到最终结论”的完整控制循环测试，因此无需 API key 也能复现 agent 的本地执行链路。
+
 完整设计取舍、运行流程和面试准备见 [docs/design.md](docs/design.md) 与 [docs/interview-qa.md](docs/interview-qa.md)。
+
+可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；运行 `./video_assets/render_demo_video.ps1` 会生成不含密钥的 1080p 演示视频。

@@ -53,3 +53,13 @@ coding-agent --workspace .\demo_target --thinking high --max-steps 12 --task "�
 用 OBS、系统录屏或任意剪辑软件导出 MP4；建议 1080p/30fps、H.264，检查文件小于 200 MB。视频中不要显示 API key、环境变量值、浏览器密码管理器或用户目录中的敏感文件。
 
 录制时可先用浏览器打开 `docs/thinking-indicator-demo.html`，停留两秒展示 Medium/High 选择；随后在终端使用相同的 `--thinking high` 参数。三档不是供应商接口的装饰字段：它会改变本地提示策略和默认资源预算。
+
+## 4. 可复现 MP4 底片
+
+项目已提供不含密钥的 112 秒、1080p/H.264 视频底片。它以字幕呈现真实任务、工具循环、测试证据与设计讲解；生成命令为：
+
+```powershell
+.\video_assets\render_demo_video.ps1
+```
+
+会生成 `deliverables/ForgeLite-demo.mp4`，通常约 2 MB，远小于 200 MB 上限。配音词在 `video_assets/narration.md`。若网关可用，最佳做法是在 24–78 秒处插入本机终端的实时 agent 操作录屏；这能更直观地证明 tool call 是实时发生的。无论采用何种剪辑，都不得显示密钥。

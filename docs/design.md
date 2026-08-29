@@ -47,6 +47,10 @@ WorkspaceTools ←── JSON 参数解析、校验和本地执行 ── tool r
 - 兼容性：实际测试发现某些兼容模型会传 `path=""`、`max_entries=1000`、`line_start/line_end`，入口将这些无害方言归一化为本地工具参数，同时不放宽路径边界。
 - 可观察性：终端显示每个模型回合、工具名、经脱敏缩短的参数和首行结果；写入内容不会直接回显。
 
+## 如何验证“能一次性完成项目”
+
+`tests/test_memory_and_agent.py` 的 `test_one_run_creates_and_verifies_a_small_project` 从全新临时目录开始。它使用 OpenAI 原生 tool-call 格式的脚本化模型响应，要求 agent 在连续三轮内写入 `calculator.py`、单元测试和 README，接着调用 `python -m unittest`，最后核验退出码与文件内容。此测试不声称替代真实模型质量；它精确验证了本项目负责的部分——多工具编排、本地写入、命令执行、结果回传和正常终止——可从零生成并验证一个项目。
+
 ## 为什么不使用框架
 
 题目要求的重要逻辑必须自己实现。本项目的模型 client、工具 schema、工具运行器、会话消息列表、历史压缩、LRU、循环和停止条件都在 `src/coding_agent` 内逐个可读；唯一网络依赖是 Python 标准库对模型厂商兼容 REST API 的普通 HTTP 请求。

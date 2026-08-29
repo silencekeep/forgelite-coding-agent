@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
+from pathlib import Path
 
 from coding_agent.agent import CodingAgent
 from coding_agent.config import AgentConfig
@@ -70,3 +72,86 @@ class AgentLoopTests(unittest.TestCase):
         self.assertEqual(len(client.requests), 2)
         self.assertTrue(any("Recent workspace memory" in str(message.get("content")) for message in client.requests[1]))
 
+    def test_one_run_creates_and_verifies_a_small_project(self) -> None:
+        """Exercise the full local loop on a fresh workspace without a network model.
+
+        The scripted responses use exactly the same OpenAI tool-call shape as a
+        model response.  This proves the agent can sequence planning output,
+        multi-file creation, command execution, tool results, and finalization.
+        """
+        app = '''def add(left: int, right: int) -> int:\n    return left + right\n'''
+        test = (
+            "import unittest\n\nfrom calculator import add\n\n\n"
+            "class CalculatorTests(unittest.TestCase):\n"
+            "    def test_add(self):\n"
+            "        self.assertEqual(add(2, 3), 5)\n"
+        )
+        readme = "# Calculator\n\nRun: `python -m unittest discover -s tests -v`.\n"
+        first_response = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "I will create the implementation, test, and instructions.",
+                        "tool_calls": [
+                            {
+                                "id": "write-app",
+                                "type": "function",
+                                "function": {
+                                    "name": "write_file",
+                                    "arguments": json.dumps({"path": "calculator.py", "content": app}),
+                                },
+                            },
+                            {
+                                "id": "write-test",
+                                "type": "function",
+                                "function": {
+                                    "name": "write_file",
+                                    "arguments": json.dumps({"path": "tests/test_calculator.py", "content": test}),
+                                },
+                            },
+                            {
+                                "id": "write-readme",
+                                "type": "function",
+                                "function": {
+                                    "name": "write_file",
+                                    "arguments": json.dumps({"path": "README.md", "content": readme}),
+                                },
+                            },
+                        ],
+                    }
+                }
+            ]
+        }
+        verify_response = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "id": "run-tests",
+                                "type": "function",
+                                "function": {
+                                    "name": "run_command",
+                                    "arguments": '{"command":"python -m unittest discover -s tests -v"}',
+                                },
+                            }
+                        ],
+                    }
+                }
+            ]
+        }
+        final_response = {"choices": [{"message": {"content": "Created and verified the calculator project."}}]}
+
+        with tempfile.TemporaryDirectory() as root:
+            client = ScriptedClient()
+            client.responses = [first_response, verify_response, final_response]
+            config = AgentConfig("not-used", "http://example.invalid/v1", "fake", 5, 8_000, 10, 4, "high")
+            agent = CodingAgent(config, root, client=client)
+            final = agent.run_task("Build a small calculator project from scratch.")
+            self.assertEqual(final, "Created and verified the calculator project.")
+            self.assertEqual((Path(root) / "calculator.py").read_text(encoding="utf-8"), app)
+            self.assertTrue((Path(root) / "tests/test_calculator.py").is_file())
+            self.assertTrue((Path(root) / "README.md").is_file())
+            tool_outputs = [message["content"] for message in agent.messages if message.get("role") == "tool"]
+            self.assertTrue(any('"exit_code=0' in output for output in tool_outputs))

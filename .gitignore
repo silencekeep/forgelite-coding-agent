@@ -9,3 +9,5 @@ __pycache__/
 *.coding-agent-tmp
 recordings/
 *.mp4
+artifacts/
+deliverables/

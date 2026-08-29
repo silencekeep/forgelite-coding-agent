@@ -29,3 +29,7 @@ tool calling 给每个操作明确的名称和 JSON 参数 schema。程序可以
 **如何证明不是封装现成 agent？**
 
 可从 `src/coding_agent` 逐个展示：`client.py` 用 `urllib` 发 HTTP，`agent.py` 是显式 while/for 控制循环，`tools.py` 是全部本地工具，`history.py` 与 `lru_memory.py` 是自主上下文管理。依赖列表也只有打包工具，没有 agent 框架或 SDK。
+
+**你如何验证 agent 可以从空目录完整交付，而不是只会修改已有代码？**
+
+我写了一个端到端控制循环测试：模拟模型依次请求写实现、写测试、写 README、运行 unittest。它在临时空目录中产生一个可测试的小项目，并检查命令实际返回 `exit_code=0`。这验证本地 agent 的可靠执行能力；而视频则用真实模型完成演示任务，证明模型规划和本地工具协议也连通。

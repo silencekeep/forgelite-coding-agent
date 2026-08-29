@@ -1,0 +1,6 @@
+ForgeLite
+
+从零实现的本地编程智能体
+
+软件工程推免项目演示
+Python 标准库 · 原生 Tool Calling · 无 Agent 框架
