@@ -69,3 +69,5 @@ python -m compileall -q src
 完整设计取舍、运行流程和面试准备见 [docs/design.md](docs/design.md) 与 [docs/interview-qa.md](docs/interview-qa.md)。
 
 可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；运行 `./video_assets/render_demo_video.ps1` 会生成不含密钥的 1080p 演示视频。
+
+账号与姓名相关的最终提交步骤见 [docs/submission-checklist.md](docs/submission-checklist.md)；`scripts/prepare_submission.ps1` 会检查 README、视频并生成姓名命名的 ZIP。
