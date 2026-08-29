@@ -23,15 +23,18 @@ def compact_history(messages: list[dict[str, Any]], char_budget: int) -> list[di
     # recent verbose tool output consume the whole context budget.
     summary_reserve = min(1_500, max(300, available // 3))
     tail_limit = max(300, available - summary_reserve)
-    tail: list[dict[str, Any]] = []
+    tail_groups: list[list[dict[str, Any]]] = []
     tail_size = 0
-    for message in reversed(rest):
-        message_size = _size([message])
-        if tail_size + message_size > tail_limit:
+    groups = _message_groups(rest)
+    for group in reversed(groups):
+        group_size = _size(group)
+        if tail_size + group_size > tail_limit:
             break
-        tail.insert(0, message)
-        tail_size += message_size
-    older = rest[: len(rest) - len(tail)]
+        tail_groups.insert(0, group)
+        tail_size += group_size
+    tail = [message for group in tail_groups for message in group]
+    older_group_count = len(groups) - len(tail_groups)
+    older = [message for group in groups[:older_group_count] for message in group]
     summary = _summarize(older)
     summary_limit = max(0, char_budget - _size(system) - tail_size - 40)
     if len(summary) > summary_limit:
@@ -45,6 +48,28 @@ def compact_history(messages: list[dict[str, Any]], char_budget: int) -> list[di
 
 def _size(messages: list[dict[str, Any]]) -> int:
     return sum(len(str(message.get("content", ""))) + len(str(message.get("tool_calls", ""))) + 40 for message in messages)
+
+
+def _message_groups(messages: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Keep each tool-call exchange intact when trimming the conversation.
+
+    OpenAI-compatible APIs require every ``role=tool`` message to follow the
+    assistant message that introduced the corresponding call.  A naïve recency
+    slice can retain only the tool result and produce an invalid request after a
+    long coding task, so this function treats the entire exchange as one group.
+    """
+    groups: list[list[dict[str, Any]]] = []
+    index = 0
+    while index < len(messages):
+        message = messages[index]
+        group = [message]
+        index += 1
+        if message.get("role") == "assistant" and message.get("tool_calls"):
+            while index < len(messages) and messages[index].get("role") == "tool":
+                group.append(messages[index])
+                index += 1
+        groups.append(group)
+    return groups
 
 
 def _summarize(messages: list[dict[str, Any]]) -> str:

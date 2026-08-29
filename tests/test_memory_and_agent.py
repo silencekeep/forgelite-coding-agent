@@ -33,6 +33,31 @@ class LruMemoryTests(unittest.TestCase):
         self.assertTrue(any("Earlier activity" in str(message.get("content")) for message in compacted))
         self.assertIn("turn-5", str(compacted[-1]))
 
+    def test_history_never_keeps_an_orphaned_tool_result(self) -> None:
+        messages = [
+            {"role": "system", "content": "rules"},
+            {"role": "user", "content": "older task " + "x" * 900},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {"id": "call-old", "function": {"name": "read_file", "arguments": '{"path":"old.py"}'}}
+                ],
+            },
+            {"role": "tool", "tool_call_id": "call-old", "content": "old file " + "y" * 900},
+            {"role": "user", "content": "latest task " + "z" * 900},
+        ]
+        compacted = compact_history(messages, 2_000)
+        call_ids = {
+            call["id"]
+            for message in compacted
+            if message.get("role") == "assistant"
+            for call in message.get("tool_calls", [])
+        }
+        for message in compacted:
+            if message.get("role") == "tool":
+                self.assertIn(message["tool_call_id"], call_ids)
+
 
 class ScriptedClient:
     def __init__(self) -> None:

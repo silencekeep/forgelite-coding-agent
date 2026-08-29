@@ -32,7 +32,7 @@ WorkspaceTools ←── JSON 参数解析、校验和本地执行 ── tool r
 
 ## 上下文与 LRU Compact
 
-只保存全部历史会让 token 成本和干扰不断增长。`history.py` 保留 system prompt 与最近几轮，把更早的 user、assistant、tool 记录变成带角色的短活动摘要，并为摘要预留字数，确保一条超长工具输出不会吞掉所有上下文。
+只保存全部历史会让 token 成本和干扰不断增长。`history.py` 保留 system prompt 与最近几轮，把更早的 user、assistant、tool 记录变成带角色的短活动摘要，并为摘要预留字数，确保一条超长工具输出不会吞掉所有上下文。压缩的基本单位不是单条消息，而是“一条 assistant tool_calls 消息及其全部 role=tool 结果”；这样不会留下 API 不接受的孤立工具结果。
 
 仅按时间也不够：修复任务通常会反复关注最近读过的 2–5 个文件。因此 `lru_memory.py` 用 `OrderedDict` 实现固定容量 LRU。每次成功读/写/编辑文件或运行命令，按文件路径或命令作为 key 更新；重复访问会移到队尾，容量满时弹出队首。下一次模型请求前，它按“最新优先、输出时按时间正序”的方式渲染在预算内的紧凑观察。该记忆明确标为非真相，prompt 要求编辑前重新读文件，避免陈旧缓存导致误改。
 
