@@ -12,6 +12,7 @@ ForgeLite 是一个仅用 Python 标准库实现的 coding agent。它通过 Ope
 - 统一限制在 `--workspace` 目录；阻止路径穿越和少量明显危险的命令
 - 本地历史压缩与 LRU 工作记忆：近期访问的文件/命令结果优先保留为短摘要
 - Low / Medium / High 思考强度：实际改变本地规划提示、默认回合数和上下文预算
+- 可选无密钥 JSONL 审计日志：记录回合、工具与成功状态，不保存 prompts、文件内容、命令输出或凭据
 - API 的超时、429/5xx 重试、工具参数错误和模型非标准参数名兼容处理
 
 ## 运行
@@ -29,6 +30,8 @@ $env:CODING_AGENT_MODEL = "openai/gpt-oss-120b"
 
 coding-agent --workspace .\demo_target --thinking high --task "修复这个项目的统计函数。不要修改测试；先阅读代码和测试，再运行测试验证。"
 ```
+
+录制或答辩时可加 `--audit-log run-audit.jsonl`，得到结构化的本地操作时间线。
 
 也可以启动交互模式：
 

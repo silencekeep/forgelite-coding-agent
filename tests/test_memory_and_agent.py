@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from coding_agent.agent import CodingAgent
+from coding_agent.audit import JsonlAuditLog
 from coding_agent.config import AgentConfig
 from coding_agent.history import compact_history
 from coding_agent.lru_memory import LruWorkingMemory
@@ -71,6 +72,29 @@ class AgentLoopTests(unittest.TestCase):
         self.assertEqual(final, "Inspection complete.")
         self.assertEqual(len(client.requests), 2)
         self.assertTrue(any("Recent workspace memory" in str(message.get("content")) for message in client.requests[1]))
+
+    def test_audit_events_exclude_task_and_file_content(self) -> None:
+        events: list[tuple[str, dict]] = []
+        with tempfile.TemporaryDirectory() as root:
+            client = ScriptedClient()
+            config = AgentConfig("not-used", "http://example.invalid/v1", "fake", 3, 8_000, 5, 3)
+            agent = CodingAgent(config, root, client=client, audit_sink=lambda event, fields: events.append((event, fields)))
+            agent.run_task("Secret task text must not be written to audit.")
+        rendered = json.dumps(events)
+        self.assertIn("run_started", rendered)
+        self.assertIn("tool_called", rendered)
+        self.assertIn("run_finished", rendered)
+        self.assertNotIn("Secret task text", rendered)
+        self.assertNotIn("Inspection complete", rendered)
+
+    def test_jsonl_audit_log_is_parseable(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "audit.jsonl"
+            sink = JsonlAuditLog(path)
+            sink("tool_finished", {"tool": "read_file", "ok": True})
+            records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(records[0]["event"], "tool_finished")
+        self.assertEqual(records[0]["tool"], "read_file")
 
     def test_one_run_creates_and_verifies_a_small_project(self) -> None:
         """Exercise the full local loop on a fresh workspace without a network model.

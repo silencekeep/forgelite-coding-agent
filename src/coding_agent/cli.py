@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .agent import CodingAgent
+from .audit import JsonlAuditLog
 from .client import ModelRequestError
 from .config import AgentConfig
 
@@ -25,6 +26,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reasoning profile. It changes the local planning prompt and default turn/context budgets.",
     )
     parser.add_argument("--max-steps", type=int, help="Override CODING_AGENT_MAX_STEPS for this run.")
+    parser.add_argument(
+        "--audit-log",
+        help="Optional JSONL operational log. It excludes prompts, file contents, command output and credentials.",
+    )
     parser.add_argument("--quiet", action="store_true", help="Hide per-step tool progress.")
     return parser
 
@@ -44,7 +49,13 @@ def main(argv: list[str] | None = None) -> int:
             max_steps_override=args.max_steps,
             thinking_override=args.thinking,
         )
-        agent = CodingAgent(config, str(workspace), on_event=(lambda text: None) if args.quiet else print)
+        audit_sink = JsonlAuditLog(args.audit_log) if args.audit_log else None
+        agent = CodingAgent(
+            config,
+            str(workspace),
+            on_event=(lambda text: None) if args.quiet else print,
+            audit_sink=audit_sink,
+        )
         if not args.quiet:
             print(
                 f"Thinking: {config.thinking_level} | max steps: {config.max_steps} | "

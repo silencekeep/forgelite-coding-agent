@@ -35,10 +35,12 @@ Pop-Location
 然后只录制下面一条命令以及后续终端输出：
 
 ```powershell
-coding-agent --workspace .\demo_target --thinking high --max-steps 12 --task "修复这个项目的统计函数。不要修改测试；先阅读实现与测试，定位失败原因，进行最小修改，然后运行全部测试验证。最后简洁说明改了什么。"
+coding-agent --workspace .\demo_target --thinking high --max-steps 12 --audit-log .\run-audit.jsonl --task "修复这个项目的统计函数。不要修改测试；先阅读实现与测试，定位失败原因，进行最小修改，然后运行全部测试验证。最后简洁说明改了什么。"
 ```
 
 如果模型已经改完，可以用 `git diff -- demo_target` 或 `Get-Content .\demo_target\text_stats.py` 展示最终代码，再运行一次测试作为收尾。为保证下次能重录，恢复演示夹时使用 `git restore demo_target`；这只会恢复仓库内的演示文件，执行前先确认没有需要保留的演示改动。
+
+`run-audit.jsonl` 会记录每一轮请求、工具名、成功状态、输出长度和结束原因。它特意不记录用户 prompt、模型文本、文件内容、命令输出或 API key，适合在答辩中展示“模型并没有直接操作机器，所有动作都经过本地工具层”。
 
 ## 3. 两分钟剪辑建议
 
