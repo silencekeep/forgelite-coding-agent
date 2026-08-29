@@ -35,7 +35,7 @@ Pop-Location
 然后只录制下面一条命令以及后续终端输出：
 
 ```powershell
-coding-agent --workspace .\demo_target --max-steps 12 --task "修复这个项目的统计函数。不要修改测试；先阅读实现与测试，定位失败原因，进行最小修改，然后运行全部测试验证。最后简洁说明改了什么。"
+coding-agent --workspace .\demo_target --thinking high --max-steps 12 --task "修复这个项目的统计函数。不要修改测试；先阅读实现与测试，定位失败原因，进行最小修改，然后运行全部测试验证。最后简洁说明改了什么。"
 ```
 
 如果模型已经改完，可以用 `git diff -- demo_target` 或 `Get-Content .\demo_target\text_stats.py` 展示最终代码，再运行一次测试作为收尾。为保证下次能重录，恢复演示夹时使用 `git restore demo_target`；这只会恢复仓库内的演示文件，执行前先确认没有需要保留的演示改动。
@@ -48,6 +48,8 @@ coding-agent --workspace .\demo_target --max-steps 12 --task "修复这个项目
 | 12–24 秒 | 快速显示失败测试，说明任务是修复真实 bug，测试不可修改。 |
 | 24–78 秒 | 加速播放 agent 的 `list_files`、`read_file`、`replace_in_file`、`run_command` 输出。指出每个工具都由本地 Python 实现。 |
 | 78–100 秒 | 展示通过的三项测试和改动 diff。 |
-| 100–120 秒 | 讲架构：模型只负责规划，控制循环、工具执行、上下文压缩、LRU 和记错处理全部在本地。 |
+| 100–120 秒 | 讲架构：模型只负责规划，控制循环、工具执行、上下文压缩、LRU 和错误处理全部在本地。 |
 
 用 OBS、系统录屏或任意剪辑软件导出 MP4；建议 1080p/30fps、H.264，检查文件小于 200 MB。视频中不要显示 API key、环境变量值、浏览器密码管理器或用户目录中的敏感文件。
+
+录制时可先用浏览器打开 `docs/thinking-indicator-demo.html`，停留两秒展示 Medium/High 选择；随后在终端使用相同的 `--thinking high` 参数。三档不是供应商接口的装饰字段：它会改变本地提示策略和默认资源预算。

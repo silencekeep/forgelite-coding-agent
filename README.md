@@ -11,6 +11,7 @@ ForgeLite 是一个仅用 Python 标准库实现的 coding agent。它通过 Ope
 - 单次任务与持续多轮对话两种模式
 - 统一限制在 `--workspace` 目录；阻止路径穿越和少量明显危险的命令
 - 本地历史压缩与 LRU 工作记忆：近期访问的文件/命令结果优先保留为短摘要
+- Low / Medium / High 思考强度：实际改变本地规划提示、默认回合数和上下文预算
 - API 的超时、429/5xx 重试、工具参数错误和模型非标准参数名兼容处理
 
 ## 运行
@@ -26,7 +27,7 @@ $env:CODING_AGENT_API_KEY = "在当前终端填写你的密钥"
 $env:CODING_AGENT_BASE_URL = "http://127.0.0.1:13000/v1"  # 或其他 OpenAI 兼容网关
 $env:CODING_AGENT_MODEL = "openai/gpt-oss-120b"
 
-coding-agent --workspace .\demo_target --task "修复这个项目的统计函数。不要修改测试；先阅读代码和测试，再运行测试验证。"
+coding-agent --workspace .\demo_target --thinking high --task "修复这个项目的统计函数。不要修改测试；先阅读代码和测试，再运行测试验证。"
 ```
 
 也可以启动交互模式：
@@ -37,6 +38,8 @@ coding-agent --workspace .\demo_target
 
 密钥只从环境变量读取；请不要把它写进仓库、`.env`、README 或录屏。更多变量与录屏流程见 [docs/run-and-demo.md](docs/run-and-demo.md)。
 
+`--thinking low|medium|high` 不是表面标签：Low 默认 8 回合/24k 字符上下文，Medium 为 16/48k，High 为 28/80k，且三档会向模型提供不同的本地规划策略。提供的腕表式组件已改造成三档选择器，可在浏览器打开 [docs/thinking-indicator-demo.html](docs/thinking-indicator-demo.html) 预览。
+
 ## 项目结构
 
 ```text
@@ -46,9 +49,11 @@ src/coding_agent/
   tools.py        # 本地工具 schema、路径约束和执行
   history.py      # 对话历史压缩
   lru_memory.py   # 最近使用工作记忆
+  thinking.py     # Low / Medium / High 配置档
 tests/            # 不联网的单元测试
 demo_target/      # 视频中使用的真实小型修复任务
 docs/             # 设计、答辩和录屏材料
+ui_assets/        # 可复用的腕表式思考强度指示器
 ```
 
 ## 验证

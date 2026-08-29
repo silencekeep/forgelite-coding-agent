@@ -10,6 +10,7 @@ from .client import ChatCompletionsClient
 from .config import AgentConfig
 from .history import compact_history
 from .lru_memory import LruWorkingMemory
+from .thinking import get_profile
 from .tools import TOOL_SCHEMAS, WorkspaceTools
 
 
@@ -34,7 +35,9 @@ class CodingAgent:
         self.tools = WorkspaceTools(workspace, config.command_timeout_seconds)
         self.client = client or ChatCompletionsClient(config.api_key, config.base_url, config.model)
         self.on_event = on_event or (lambda _: None)
-        self.messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+        profile = get_profile(config.thinking_level)
+        system_prompt = SYSTEM_PROMPT + f"\n\nThinking profile ({profile.name}): {profile.instruction}"
+        self.messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
         self.working_memory = LruWorkingMemory(config.lru_memory_items)
 
     def run_task(self, task: str) -> str:
@@ -51,7 +54,10 @@ class CodingAgent:
             memory = self.working_memory.render(memory_budget)
             if memory:
                 request_messages.insert(1, {"role": "system", "content": memory})
-            self.on_event(f"[step {step}/{self.config.max_steps}] contacting {self.config.model}")
+            self.on_event(
+                f"[step {step}/{self.config.max_steps} | thinking: {self.config.thinking_level}] "
+                f"contacting {self.config.model}"
+            )
             response = self.client.complete(request_messages, TOOL_SCHEMAS)
             assistant = _assistant_message(response)
             self.messages.append(assistant)

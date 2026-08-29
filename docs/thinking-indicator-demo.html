@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ForgeLite 思考强度指示器</title>
+  <link rel="stylesheet" href="../ui_assets/thinking-indicator.css">
+</head>
+<body style="margin:48px;background:#f8fafc">
+  <main style="max-width:580px;padding:28px;border-radius:14px;background:#fff;box-shadow:0 12px 32px #0f172a12">
+    <h1 style="margin-top:0;font:600 23px system-ui,sans-serif">思考强度</h1>
+    <p style="font:14px/1.6 system-ui,sans-serif;color:#475569">使用提供的腕表指示器素材。实际运行时，选择值对应 <code>--thinking low|medium|high</code>。</p>
+    <div class="thinking-control" data-thinking-control data-level="medium">
+      <button class="thinking-trigger" data-thinking-trigger type="button" aria-expanded="false">
+        <img class="thinking-icon" src="../ui_assets/watch-indicator.svg" alt="">
+        <span data-thinking-label>Medium</span><span class="thinking-chevron">⌄</span>
+      </button>
+      <div class="thinking-menu" data-thinking-menu hidden>
+        <button class="thinking-option" data-thinking-option="low">Low — 快速、较少回合</button>
+        <button class="thinking-option" data-thinking-option="medium" aria-current="true">Medium — 平衡</button>
+        <button class="thinking-option" data-thinking-option="high">High — 更充分检查和验证</button>
+      </div>
+    </div>
+    <p id="profile" style="font:14px system-ui,sans-serif;color:#475569"></p>
+  </main>
+  <script src="../ui_assets/thinking-indicator.js"></script>
+  <script>
+    const control = document.querySelector('[data-thinking-control]');
+    const profile = document.getElementById('profile');
+    const describe = ({ detail }) => profile.textContent = `当前：${detail.level}。运行示例：coding-agent --thinking ${detail.level} ...`;
+    control.addEventListener('thinking-change', describe);
+    describe({ detail: { level: 'medium' } });
+  </script>
+</body>
+</html>
