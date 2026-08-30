@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | 与大语言模型交互 | `client.py` 手写 `/chat/completions` HTTP 请求，携带原生 tools schema | 真实 `openai/gpt-oss-120b` one-shot 审计 | 已验证 |
 | 自主读写文件、执行命令 | `tools.py` 的六个本地工具 | 工具单测；真实轨迹包含 list/write/run | 已验证 |
-| 不使用 agent 框架/SDK | `pyproject.toml` 无运行依赖；模型客户端仅用标准库 `urllib` | 可编辑安装与全量测试 | 已验证 |
+| 不使用 agent 框架/SDK | `pyproject.toml` 无运行依赖；模型客户端仅用标准库 `urllib` | 纯 Git 快照测试与 wheel 构建报告 | 已验证 |
 | 不依赖服务端文件/代码工具 | 所有工具由 `WorkspaceTools` 在本机执行 | 源码审查；审计轨迹 | 已验证 |
 | 自行维护对话历史 | `CodingAgent.messages` 与 `history.py` | 历史压缩测试 | 已验证 |
 | 自行实现上下文管理 | 历史摘要 + `LruWorkingMemory` | LRU 淘汰、预算与渲染测试 | 已验证 |

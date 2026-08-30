@@ -89,6 +89,8 @@ python -m compileall -q src
 
 Web 控制台通过 `search_text` 定点分析当前仓库的 3 回合真实验收见 [docs/evidence/web-search-report.md](docs/evidence/web-search-report.md)。
 
+只从 tracked files 导出全新快照后重新测试并构建 wheel 的结果见 [docs/evidence/release-candidate-report.md](docs/evidence/release-candidate-report.md)。
+
 可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；在装有 FFmpeg、Edge 和中文系统语音的 Windows 上运行 `./video_assets/render_demo_video.ps1`，会生成不含密钥的 1080p 演示视频，自动嵌入本地 Web 控制台画面并合成中文旁白。
 
 账号与姓名相关的最终提交步骤见 [docs/submission-checklist.md](docs/submission-checklist.md)；`scripts/prepare_submission.ps1` 会检查 README、视频并生成姓名命名的 ZIP。
