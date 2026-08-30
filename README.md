@@ -78,3 +78,5 @@ python -m compileall -q src
 可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；运行 `./video_assets/render_demo_video.ps1` 会生成不含密钥的 1080p 演示视频。
 
 账号与姓名相关的最终提交步骤见 [docs/submission-checklist.md](docs/submission-checklist.md)；`scripts/prepare_submission.ps1` 会检查 README、视频并生成姓名命名的 ZIP。
+
+运行 `./scripts/verify_project.ps1` 可一次检查测试、编译、README 长度、tracked-file 密钥扫描、真实 one-shot 证据和视频门槛；逐项要求映射见 [docs/requirements-traceability.md](docs/requirements-traceability.md)。
