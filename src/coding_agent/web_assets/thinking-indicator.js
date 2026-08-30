@@ -27,6 +27,10 @@
         menu.hidden = true;
       });
     });
+    if (new URLSearchParams(window.location.search).get("preview") === "open") {
+      trigger.setAttribute("aria-expanded", "true");
+      menu.hidden = false;
+    }
   });
 
   document.addEventListener("click", (event) => {

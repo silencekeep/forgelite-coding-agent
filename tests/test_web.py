@@ -72,6 +72,9 @@ class ConsoleApplicationTests(unittest.TestCase):
             html = response.read().decode("utf-8")
             self.assertIn("ForgeLite", html)
             self.assertIn("default-src 'self'", response.headers["Content-Security-Policy"])
+        with opener.open(base + "/console.css", timeout=5) as response:
+            self.assertIn("text/css", response.headers["Content-Type"])
+            self.assertIn(".result-grid", response.read().decode("utf-8"))
 
         body = json.dumps({"task": "Build it.", "thinking": "low"}).encode("utf-8")
         request = Request(base + "/api/run", data=body, headers={"Content-Type": "application/json"}, method="POST")

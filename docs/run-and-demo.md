@@ -82,4 +82,4 @@ coding-agent --workspace .\demo_target --thinking high --max-steps 12 --audit-lo
 .\video_assets\render_demo_video.ps1
 ```
 
-会生成 `deliverables/ForgeLite-demo.mp4`，通常约 2 MB，远小于 200 MB 上限。配音词在 `video_assets/narration.md`。若网关可用，最佳做法是在 24–78 秒处插入本机终端的实时 agent 操作录屏；这能更直观地证明 tool call 是实时发生的。无论采用何种剪辑，都不得显示密钥。
+会生成 `deliverables/ForgeLite-demo.mp4`，通常约 2 MB，远小于 200 MB 上限。脚本用 FFmpeg 生成字幕场景，并让本机 Edge 无联网打开仓库内 HTML、截取 Web 控制台画面；总时长仍为 112 秒。配音词在 `video_assets/narration.md`。若网关可用，最佳做法是在 24–78 秒处插入本机终端的实时 agent 操作录屏；这能更直观地证明 tool call 是实时发生的。无论采用何种剪辑，都不得显示密钥。

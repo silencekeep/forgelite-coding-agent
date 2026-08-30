@@ -23,11 +23,11 @@ MAX_REQUEST_BYTES = 32_000
 MAX_TASK_CHARACTERS = 16_000
 ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
-    "/assets/console.css": ("console.css", "text/css; charset=utf-8"),
-    "/assets/console.js": ("console.js", "text/javascript; charset=utf-8"),
-    "/assets/thinking-indicator.css": ("thinking-indicator.css", "text/css; charset=utf-8"),
-    "/assets/thinking-indicator.js": ("thinking-indicator.js", "text/javascript; charset=utf-8"),
-    "/assets/watch-indicator.svg": ("watch-indicator.svg", "image/svg+xml"),
+    "/console.css": ("console.css", "text/css; charset=utf-8"),
+    "/console.js": ("console.js", "text/javascript; charset=utf-8"),
+    "/thinking-indicator.css": ("thinking-indicator.css", "text/css; charset=utf-8"),
+    "/thinking-indicator.js": ("thinking-indicator.js", "text/javascript; charset=utf-8"),
+    "/watch-indicator.svg": ("watch-indicator.svg", "image/svg+xml"),
 }
 AgentFactory = Callable[..., Any]
 
