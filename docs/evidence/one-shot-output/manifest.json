@@ -1,0 +1,17 @@
+{
+  "description": "Verbatim text-file snapshot from the 2026-08-30 real-model one-shot run.",
+  "files": [
+    {
+      "path": "todo_app.py",
+      "sha256": "9E4F7D9FF9F61D858E519506EFAEFAA37D585D3B17E0AE43F0285F8698846E2B"
+    },
+    {
+      "path": "tests/test_todo_app.py",
+      "sha256": "95A869FE4B220E848C149DBA08ED60147ACE9F402EEC46E296ED853DD30BB79F"
+    },
+    {
+      "path": "README.md",
+      "sha256": "0441D621A186FF8A217E53CA273DC8C24D3B51ABFE2AF6F2F8D044B19197B964"
+    }
+  ]
+}

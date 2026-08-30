@@ -14,7 +14,7 @@
 | 循环与终止条件 | `run_task` 显式模型—工具循环；final/空响应/专用步数异常 | 脚本化端到端测试；CLI/Web 非成功语义；真实 7 回合终止 | 已验证 |
 | 错误处理 | 429/5xx 重试、HTTP 4xx 快速失败、工具错误回传、命令超时 | 错误路径单测；真实轨迹 step 5 失败、step 6 自纠正 | 已验证 |
 | API key 不入库 | `AgentConfig` 只读环境变量；`.gitignore` 排除 `.env*` | tracked-files 密钥模式扫描 | 已验证 |
-| 完整一次性交付项目 | High 模式 + 本地工具循环 | 空目录生成待办实现、测试、README；5/5 + 黑盒验证 | 已验证 |
+| 完整一次性交付项目 | High 模式 + 本地工具循环 | 审计轨迹；带 SHA-256 的生成产物快照；5/5 + 黑盒验证 | 已验证 |
 | Low/Medium/High 可交互调节 | 三档 profile + loopback Web 腕表选择器 | profile 单测、Web 传参单测、`web-search-report.md` | 已验证 |
 | README.txt ≤1000 字 | 根目录 `README.txt` | 验收脚本动态检查字符数 | 已验证 |
 | MP4 ≤2分钟、≤200MB | 可复现 FFmpeg 渲染脚本 | 112 秒、约 1.3 MB、抽帧检查 | 已验证 |
@@ -23,7 +23,7 @@
 
 ## 真实 one-shot 证据边界
 
-`evidence/one-shot-audit.jsonl` 证明事件顺序、工具名、成功状态和终止原因；它有意不保存 prompt、源码和命令输出。生成项目的 5 项测试与手工黑盒结果记录在 `one-shot-report.md`。两者结合证明“发生了什么”和“产物是否工作”，同时避免把敏感内容写入仓库。
+`evidence/one-shot-audit.jsonl` 证明事件顺序、工具名、成功状态和终止原因；它有意不保存 prompt 和命令输出。生成项目的 5 项测试与手工黑盒结果记录在 `one-shot-report.md`，三个文本产物及哈希保存在 `one-shot-output/`。轨迹、逐字节快照与独立复验共同证明“发生了什么”和“产物是否工作”，同时避免把敏感内容写入仓库。
 
 ## 已知边界
 

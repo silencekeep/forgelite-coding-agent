@@ -13,6 +13,20 @@ try {
     python -m unittest discover -s tests -q
     if ($LASTEXITCODE -ne 0) { throw "Main test suite failed." }
 
+    $evidenceRoot = Join-Path $root "docs\evidence\one-shot-output"
+    python -m unittest discover -s (Join-Path $evidenceRoot "tests") -q
+    if ($LASTEXITCODE -ne 0) { throw "Committed one-shot output tests failed." }
+
+    $manifest = Get-Content -LiteralPath (Join-Path $evidenceRoot "manifest.json") -Raw -Encoding utf8 |
+        ConvertFrom-Json
+    foreach ($entry in $manifest.files) {
+        $evidenceFile = Join-Path $evidenceRoot $entry.path
+        $actualHash = (Get-FileHash -LiteralPath $evidenceFile -Algorithm SHA256).Hash
+        if ($actualHash -ne $entry.sha256) {
+            throw "One-shot evidence hash mismatch: $($entry.path)"
+        }
+    }
+
     python -m compileall -q src
     if ($LASTEXITCODE -ne 0) { throw "Source compilation failed." }
 
@@ -45,7 +59,7 @@ try {
         throw "Submission video is missing."
     }
 
-    Write-Host "PASS: test suite, compilation, README, credential scan, one-shot evidence, and video gates."
+    Write-Host "PASS: main/evidence tests, compilation, README, credential scan, one-shot hashes, and video gates."
     if (-not $SubmissionReady -and $readme -match '<请替换为你的账号>') {
         Write-Host "NOTE: replace the repository URL, then rerun with -SubmissionReady."
     }

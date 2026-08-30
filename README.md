@@ -83,9 +83,9 @@ python -m compileall -q src
 
 测试集不仅覆盖单个工具，还包含 Web 请求边界和“空工作区 → 创建实现、测试和 README → 执行测试 → 收到最终结论”的完整控制循环测试，因此无需 API key 也能复现 agent 的本地执行链路。
 
-完整设计取舍、运行流程和面试准备见 [docs/design.md](docs/design.md) 与 [docs/interview-qa.md](docs/interview-qa.md)。
+完整设计取舍、运行流程和面试准备见 [docs/design.md](docs/design.md)、[docs/source-walkthrough.md](docs/source-walkthrough.md) 与 [docs/interview-qa.md](docs/interview-qa.md)。
 
-真实模型从空工作区一次性生成待办项目的 7 回合验收记录见 [docs/evidence/one-shot-report.md](docs/evidence/one-shot-report.md)，对应结构化日志不含 prompt、文件内容或凭据。
+真实模型从空工作区一次性生成待办项目的 7 回合验收记录见 [docs/evidence/one-shot-report.md](docs/evidence/one-shot-report.md)；对应结构化日志不含 prompt、文件内容或凭据，生成产物的逐字节快照与 SHA-256 清单可由总验收脚本复核。
 
 Web 控制台通过 `search_text` 定点分析当前仓库的 3 回合真实验收见 [docs/evidence/web-search-report.md](docs/evidence/web-search-report.md)。
 
