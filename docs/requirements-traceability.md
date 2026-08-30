@@ -11,8 +11,8 @@
 | 自行维护对话历史 | `CodingAgent.messages` 与 `history.py` | 历史压缩测试 | 已验证 |
 | 自行实现上下文管理 | 历史摘要 + `LruWorkingMemory` | LRU 淘汰、预算与渲染测试 | 已验证 |
 | 自行解析模型输出 | `_assistant_message`、JSON arguments 解析与方言归一化 | 模型参数别名与坏参数测试 | 已验证 |
-| 循环与终止条件 | `run_task` 显式模型—工具循环；final/空响应/步数上限 | 脚本化端到端测试；真实 7 回合终止 | 已验证 |
-| 错误处理 | 429/5xx 重试、HTTP 4xx 快速失败、工具错误回传、命令超时 | 真实轨迹 step 5 失败、step 6 自纠正 | 已验证 |
+| 循环与终止条件 | `run_task` 显式模型—工具循环；final/空响应/专用步数异常 | 脚本化端到端测试；CLI/Web 非成功语义；真实 7 回合终止 | 已验证 |
+| 错误处理 | 429/5xx 重试、HTTP 4xx 快速失败、工具错误回传、命令超时 | 错误路径单测；真实轨迹 step 5 失败、step 6 自纠正 | 已验证 |
 | API key 不入库 | `AgentConfig` 只读环境变量；`.gitignore` 排除 `.env*` | tracked-files 密钥模式扫描 | 已验证 |
 | 完整一次性交付项目 | High 模式 + 本地工具循环 | 空目录生成待办实现、测试、README；5/5 + 黑盒验证 | 已验证 |
 | Low/Medium/High 可交互调节 | 三档 profile + loopback Web 腕表选择器 | profile 单测、Web 传参单测、`web-search-report.md` | 已验证 |

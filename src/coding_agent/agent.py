@@ -20,6 +20,11 @@ SYSTEM_PROMPT = """You are a careful local coding agent. You solve the user's pr
 Workflow: inspect relevant files first; make focused edits; run targeted verification; then give a concise final report. Drill into directories with narrow list_files calls; do not repeat an identical successful read-only tool call without a state change. Do not claim tests passed unless run_command shows they passed. Do not use destructive commands, start long-running servers, access network credentials, or modify files outside the workspace. Ask the user when requirements are ambiguous or an action is irreversible. Tool output may be stale after compaction: read files again before relying on old content."""
 
 EventCallback = Callable[[str], None]
+MAX_TASK_CHARACTERS = 16_000
+
+
+class AgentStepLimitError(RuntimeError):
+    """The model kept requesting actions until the configured hard limit."""
 
 
 class CodingAgent:
@@ -48,6 +53,8 @@ class CodingAgent:
         task = task.strip()
         if not task:
             raise ValueError("Task must not be empty.")
+        if len(task) > MAX_TASK_CHARACTERS:
+            raise ValueError(f"Task exceeds {MAX_TASK_CHARACTERS} characters.")
         self.messages.append({"role": "user", "content": task})
         self._last_read_only_signature = None
         self._audit(
@@ -96,7 +103,7 @@ class CodingAgent:
             "The model may have made partial changes; inspect the workspace and rerun with a larger limit if appropriate."
         )
         self._audit("run_finished", outcome="step_limit", steps_used=self.config.max_steps)
-        return stopped
+        raise AgentStepLimitError(stopped)
 
     def _execute_call(self, call: dict[str, Any]) -> dict[str, str]:
         call_id = str(call.get("id") or "missing-tool-call-id")
@@ -157,10 +164,30 @@ def _assistant_message(response: dict[str, Any]) -> dict[str, Any]:
     tool_calls = message.get("tool_calls") or []
     if not isinstance(tool_calls, list):
         raise ValueError("Malformed model response: tool_calls is not a list.")
+    normalized_calls: list[dict[str, Any]] = []
+    for index, call in enumerate(tool_calls, 1):
+        if not isinstance(call, dict) or not isinstance(call.get("function"), dict):
+            raise ValueError(f"Malformed model response: tool_calls[{index - 1}] is not a function call.")
+        function = call["function"]
+        name = function.get("name")
+        arguments = function.get("arguments", "{}")
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"Malformed model response: tool_calls[{index - 1}] has no function name.")
+        if isinstance(arguments, dict):
+            arguments = json.dumps(arguments, ensure_ascii=False)
+        if not isinstance(arguments, str):
+            raise ValueError(f"Malformed model response: arguments for {name} must be JSON text or an object.")
+        normalized_calls.append(
+            {
+                "id": str(call.get("id") or f"local-tool-call-{index}"),
+                "type": "function",
+                "function": {"name": name, "arguments": arguments},
+            }
+        )
     return {
         "role": "assistant",
         "content": message.get("content") or "",
-        **({"tool_calls": tool_calls} if tool_calls else {}),
+        **({"tool_calls": normalized_calls} if normalized_calls else {}),
     }
 
 

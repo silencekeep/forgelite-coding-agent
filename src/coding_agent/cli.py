@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .agent import CodingAgent
+from .agent import AgentStepLimitError, CodingAgent
 from .audit import JsonlAuditLog
 from .client import ModelRequestError
 from .config import AgentConfig
@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
             _print_result(agent.run_task(args.task))
             return 0
         return _repl(agent, workspace)
-    except (ValueError, ModelRequestError) as exc:
+    except (ValueError, ModelRequestError, AgentStepLimitError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
@@ -88,7 +88,7 @@ def _repl(agent: CodingAgent, workspace: Path) -> int:
             continue
         try:
             _print_result(agent.run_task(task))
-        except (ValueError, ModelRequestError) as exc:
+        except (ValueError, ModelRequestError, AgentStepLimitError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
 
 

@@ -4,9 +4,11 @@ import json
 import os
 import threading
 import unittest
+from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 from unittest.mock import patch
 
+from coding_agent.agent import AgentStepLimitError
 from coding_agent.web import AgentBusyError, ConsoleApplication, ConsoleServer
 
 
@@ -22,6 +24,11 @@ class FakeAgent:
         self.audit_sink("tool_called", {"tool": "list_files"})
         self.audit_sink("run_finished", {"outcome": "model_final"})
         return "Fake task completed."
+
+
+class StepLimitedAgent(FakeAgent):
+    def run_task(self, task):
+        raise AgentStepLimitError("Stopped at the configured limit.")
 
 
 class ConsoleApplicationTests(unittest.TestCase):
@@ -82,6 +89,28 @@ class ConsoleApplicationTests(unittest.TestCase):
             payload = json.loads(response.read().decode("utf-8"))
         self.assertEqual(payload["result"], "Fake task completed.")
         self.assertEqual(payload["thinking"], "low")
+
+    def test_http_console_reports_step_limit_as_non_success(self) -> None:
+        application = ConsoleApplication(".", agent_factory=StepLimitedAgent)
+        server = ConsoleServer(("127.0.0.1", 0), application)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        opener = build_opener(ProxyHandler({}))
+        body = json.dumps({"task": "Keep going.", "thinking": "medium"}).encode("utf-8")
+        request = Request(
+            f"http://127.0.0.1:{server.server_port}/api/run",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with self.assertRaises(HTTPError) as raised:
+            opener.open(request, timeout=5)
+        self.assertEqual(raised.exception.code, 422)
+        payload = json.loads(raised.exception.read().decode("utf-8"))
+        self.assertFalse(payload["ok"])
+        self.assertIn("configured limit", payload["error"])
 
 
 if __name__ == "__main__":

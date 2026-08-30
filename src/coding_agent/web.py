@@ -13,14 +13,13 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
-from .agent import CodingAgent
+from .agent import MAX_TASK_CHARACTERS, AgentStepLimitError, CodingAgent
 from .client import ModelRequestError
 from .config import AgentConfig
 from .thinking import get_profile
 
 
 MAX_REQUEST_BYTES = 32_000
-MAX_TASK_CHARACTERS = 16_000
 ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/console.css": ("console.css", "text/css; charset=utf-8"),
@@ -132,6 +131,8 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             self._json_response(400, {"ok": False, "error": str(exc)})
         except ModelRequestError as exc:
             self._json_response(502, {"ok": False, "error": str(exc)})
+        except AgentStepLimitError as exc:
+            self._json_response(422, {"ok": False, "error": str(exc)})
         except AgentBusyError as exc:
             self._json_response(409, {"ok": False, "error": str(exc)})
         except Exception as exc:

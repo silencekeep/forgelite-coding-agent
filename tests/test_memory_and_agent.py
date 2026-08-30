@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from coding_agent.agent import CodingAgent
+from coding_agent.agent import MAX_TASK_CHARACTERS, AgentStepLimitError, CodingAgent, _assistant_message
 from coding_agent.audit import JsonlAuditLog
 from coding_agent.config import AgentConfig
 from coding_agent.history import compact_history
@@ -99,6 +99,56 @@ class ScriptedClient:
 
 
 class AgentLoopTests(unittest.TestCase):
+    def test_tool_call_dialects_are_normalized_for_history(self) -> None:
+        message = _assistant_message(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "tool_calls": [
+                                {"function": {"name": "list_files", "arguments": {"path": "."}}}
+                            ]
+                        }
+                    }
+                ]
+            }
+        )
+        call = message["tool_calls"][0]
+        self.assertEqual(call["id"], "local-tool-call-1")
+        self.assertEqual(call["type"], "function")
+        self.assertEqual(json.loads(call["function"]["arguments"]), {"path": "."})
+
+    def test_malformed_tool_call_is_rejected(self) -> None:
+        response = {"choices": [{"message": {"tool_calls": ["not-an-object"]}}]}
+        with self.assertRaisesRegex(ValueError, "not a function call"):
+            _assistant_message(response)
+
+    def test_oversized_task_is_rejected_before_model_request(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            client = ScriptedClient()
+            config = AgentConfig("not-used", "http://example.invalid/v1", "fake", 3, 8_000, 5, 3)
+            agent = CodingAgent(config, root, client=client)
+            with self.assertRaisesRegex(ValueError, "Task exceeds"):
+                agent.run_task("x" * (MAX_TASK_CHARACTERS + 1))
+        self.assertEqual(client.requests, [])
+
+    def test_step_limit_is_an_explicit_failure(self) -> None:
+        events: list[tuple[str, dict]] = []
+        with tempfile.TemporaryDirectory() as root:
+            client = ScriptedClient()
+            client.responses = client.responses[:1]
+            config = AgentConfig("not-used", "http://example.invalid/v1", "fake", 1, 8_000, 5, 3)
+            agent = CodingAgent(
+                config,
+                root,
+                client=client,
+                audit_sink=lambda event, fields: events.append((event, fields)),
+            )
+            with self.assertRaisesRegex(AgentStepLimitError, "configured limit of 1"):
+                agent.run_task("Keep inspecting forever.")
+        self.assertEqual(events[-1][0], "run_finished")
+        self.assertEqual(events[-1][1]["outcome"], "step_limit")
+
     def test_tool_loop_and_lru_context(self) -> None:
         with tempfile.TemporaryDirectory() as root:
             client = ScriptedClient()

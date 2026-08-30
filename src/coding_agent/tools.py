@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from fnmatch import fnmatch
@@ -15,6 +17,7 @@ from typing import Any, Callable
 MAX_FILE_BYTES = 200_000
 MAX_COMMAND_OUTPUT = 12_000
 MAX_LIST_OUTPUT = 12_000
+MAX_READ_OUTPUT = 30_000
 
 
 TOOL_SCHEMAS: list[dict[str, Any]] = [
@@ -308,6 +311,9 @@ class WorkspaceTools:
         end = end_line if end_line else len(lines)
         body = "".join(lines[start:end])
         numbered = "".join(f"{line_no:>5}: {line}" for line_no, line in enumerate(body.splitlines(keepends=True), start + 1))
+        if len(numbered) > MAX_READ_OUTPUT:
+            numbered = numbered[:MAX_READ_OUTPUT].rsplit("\n", 1)[0]
+            numbered += "\n[truncated; use start_line and end_line to read a narrower range]"
         return ToolResult(True, numbered or "(empty)")
 
     def write_file(self, path: str, content: str) -> ToolResult:
@@ -315,9 +321,7 @@ class WorkspaceTools:
         if len(content.encode("utf-8")) > MAX_FILE_BYTES:
             raise ValueError(f"Content exceeds {MAX_FILE_BYTES} byte write limit.")
         target.parent.mkdir(parents=True, exist_ok=True)
-        temporary = target.with_name(target.name + ".coding-agent-tmp")
-        temporary.write_text(content, encoding="utf-8", newline="")
-        temporary.replace(target)
+        _atomic_write_text(target, content)
         return ToolResult(True, f"Wrote {path} ({len(content.encode('utf-8'))} bytes).")
 
     def replace_in_file(self, path: str, old_text: str, new_text: str) -> ToolResult:
@@ -326,6 +330,8 @@ class WorkspaceTools:
         target = self._resolve(path)
         if not target.is_file():
             raise ValueError(f"Not a file: {path}")
+        if target.stat().st_size > MAX_FILE_BYTES:
+            raise ValueError(f"File exceeds {MAX_FILE_BYTES} byte edit limit: {path}")
         original = target.read_text(encoding="utf-8")
         count = original.count(old_text)
         if count != 1:
@@ -333,9 +339,7 @@ class WorkspaceTools:
         changed = original.replace(old_text, new_text, 1)
         if len(changed.encode("utf-8")) > MAX_FILE_BYTES:
             raise ValueError(f"Replacement would exceed {MAX_FILE_BYTES} byte write limit.")
-        temporary = target.with_name(target.name + ".coding-agent-tmp")
-        temporary.write_text(changed, encoding="utf-8", newline="")
-        temporary.replace(target)
+        _atomic_write_text(target, changed)
         return ToolResult(True, f"Replaced text in {path}.")
 
     def run_command(self, command: str, timeout_seconds: int | None = None) -> ToolResult:
@@ -375,6 +379,31 @@ def _truncate(output: str) -> str:
     if len(output) <= MAX_COMMAND_OUTPUT:
         return output
     return output[:MAX_COMMAND_OUTPUT] + "\n[output truncated]"
+
+
+def _atomic_write_text(target: Path, content: str) -> None:
+    """Write through an exclusively-created sibling, then atomically replace."""
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            prefix=f".{target.name}.",
+            suffix=".coding-agent-tmp",
+            dir=target.parent,
+            delete=False,
+        ) as handle:
+            handle.write(content)
+            temporary = Path(handle.name)
+        os.replace(temporary, target)
+        temporary = None
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def _dangerous_command_reason(command: str) -> str | None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from coding_agent.tools import TOOL_SCHEMAS, WorkspaceTools
 
@@ -33,6 +34,21 @@ class WorkspaceToolsTests(unittest.TestCase):
             names,
             ["list_files", "search_text", "read_file", "write_file", "replace_in_file", "run_command"],
         )
+
+    def test_large_read_is_truncated_with_narrowing_guidance(self) -> None:
+        content = "".join(f"line {index}: {'x' * 100}\n" for index in range(400))
+        (self.root / "large.txt").write_text(content, encoding="utf-8")
+        result = self.tools.execute("read_file", {"path": "large.txt"})
+        self.assertTrue(result.ok)
+        self.assertLess(len(result.output), len(content))
+        self.assertIn("use start_line and end_line", result.output)
+
+    def test_atomic_write_cleans_temporary_file_after_replace_failure(self) -> None:
+        with patch("coding_agent.tools.os.replace", side_effect=OSError("simulated replace failure")):
+            result = self.tools.execute("write_file", {"path": "target.txt", "content": "new content"})
+        self.assertFalse(result.ok)
+        self.assertIn("simulated replace failure", result.output)
+        self.assertEqual(list(self.root.glob("*.coding-agent-tmp")), [])
 
     def test_path_escape_is_rejected(self) -> None:
         result = self.tools.execute("read_file", {"path": "../outside.txt"})
