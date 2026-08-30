@@ -1,7 +1,7 @@
 # 纯 Git 快照发布验收
 
 验收日期：2026-08-30（北京时间）  
-验收提交：`18ecff7`  
+验收提交：`f411fa9`
 目的：排除本地 `.gitignore` 产物、editable 残留或未跟踪文件让测试“偶然通过”的可能。
 
 ## 方法
@@ -14,9 +14,9 @@
 
 ## 结果
 
-- ForgeLite 主项目：36 项测试通过；
+- ForgeLite 主项目：39 项测试通过，其中包含 NDJSON 流顺序、任务结束前刷新、终止错误记录与浅色静态资源断言；
 - one-shot 生成项目：5 项测试通过；
-- wheel 构建成功：`local_coding_agent-0.1.0-py3-none-any.whl`，31,307 bytes；
-- wheel 中确认包含 `coding_agent/web.py`、`web_assets/index.html`、`web_assets/console.css` 与 `dist-info/entry_points.txt`。
+- wheel 构建成功：`local_coding_agent-0.1.0-py3-none-any.whl`，37,084 bytes；
+- wheel 中确认包含 `coding_agent/web.py`、浅色 ReAct 工作台的 `index.html`、`console.js`、`console.css` 与 `dist-info/entry_points.txt`。
 
 这证明公开仓库的 tracked files 足以测试和打包主程序，真实运行时才需要由用户通过环境变量提供模型 API key。视频与最终提交 ZIP 按题目要求是仓库外提交物，因此不参与这项纯 Git 快照验证。
