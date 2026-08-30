@@ -35,6 +35,30 @@ try {
     if ($SubmissionReady -and $readme -match '<请替换为你的账号>') {
         throw "README.txt still contains the repository URL placeholder."
     }
+    if ($SubmissionReady) {
+        $repositoryMatch = [regex]::Match($readme, 'Git 仓库地址：(https://github\.com/[^/\s]+/[^\s]+)')
+        if (-not $repositoryMatch.Success) {
+            throw "README.txt does not contain a valid GitHub repository URL."
+        }
+        $repositoryUrl = $repositoryMatch.Groups[1].Value.TrimEnd('/')
+        $originUrl = git remote get-url origin 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $originUrl) {
+            throw "Git remote 'origin' is not configured."
+        }
+        $normalizedOrigin = $originUrl.TrimEnd('/') -replace '\.git$', ''
+        if ($normalizedOrigin -ne $repositoryUrl) {
+            throw "README repository URL does not match git remote origin."
+        }
+        try {
+            $publicCheck = Invoke-WebRequest -Uri $repositoryUrl -Method Head -MaximumRedirection 3 -TimeoutSec 20
+        }
+        catch {
+            throw "Public repository URL is not anonymously reachable: $repositoryUrl"
+        }
+        if ($publicCheck.StatusCode -ne 200) {
+            throw "Public repository returned HTTP $($publicCheck.StatusCode): $repositoryUrl"
+        }
+    }
 
     $secretMatches = git grep -n -E 'sk-[A-Za-z0-9_-]{12,}' -- . 2>$null
     if ($LASTEXITCODE -eq 0) { throw "A possible API key exists in a tracked file." }

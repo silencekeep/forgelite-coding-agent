@@ -1,7 +1,7 @@
 # 提交前 5 分钟清单
 
 - [ ] 在 GitHub 或 Gitee 新建**公开**仓库，并将当前 `main` 的完整提交历史推送上去；不要 squash 或改写已推送历史。
-- [ ] 把真实仓库地址替换到根目录 `README.txt` 第一行，确认其长度仍不超过 1000 字符。
+- [ ] 把真实仓库地址替换到根目录 `README.txt` 第一行；确认它与 `origin` 一致、匿名访问返回 HTTP 200，且全文仍不超过 1000 字符。
 - [ ] 如需要重建视频，运行 `./video_assets/render_demo_video.ps1`。视频为 112 秒、1080p、H.264；可按 `docs/run-and-demo.md` 插入实时终端片段。
 - [ ] 确认视频中没有 API key、终端环境变量值或私人文件路径。
 - [ ] 在项目根目录运行：`./scripts/prepare_submission.ps1 -Name "你的姓名"`。

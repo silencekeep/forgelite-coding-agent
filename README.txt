@@ -1,4 +1,4 @@
-Git 仓库地址：https://github.com/<请替换为你的账号>/forgelite-coding-agent
+Git 仓库地址：https://github.com/silencekeep/forgelite-coding-agent
 
 运行：Python 3.11+，无需第三方运行依赖。执行 `python -m pip install -e .`；在终端设置 `CODING_AGENT_API_KEY`、`CODING_AGENT_BASE_URL` 和 `CODING_AGENT_MODEL`，再运行 `coding-agent --workspace <目录> --task "你的编程任务"`。密钥只从环境变量读取，未写入仓库。
 
