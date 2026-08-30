@@ -1,11 +1,11 @@
-真实编程任务：修复文本统计函数
+真实 One-shot 任务：从空目录交付完整项目
 
-演示工作区包含一个刻意保留的 bug：
-word_count 使用 split(" ")，无法正确处理换行、制表符和连续空格。
+目标：纯标准库 Python 命令行待办事项管理器
 
-测试起始结果：
-  test_unique_words_are_lowercase  OK
-  test_word_count_handles_repeated_whitespace  FAIL
-  test_word_count_of_blank_text_is_zero  FAIL
+· todo_app.py：add / list / done 三个子命令
+· 数据持久化到当前目录 todos.json
+· 参数错误和不存在 ID 必须返回非零退出码
+· tests/test_todo_app.py 覆盖核心功能与错误路径
+· README.md 说明运行和测试
 
-要求：不改测试，定位原因，做最小修改，并运行全部测试验证。
+要求 agent 不询问、不暂停，自主创建全部文件并运行完整测试。

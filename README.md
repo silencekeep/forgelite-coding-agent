@@ -41,6 +41,8 @@ coding-agent --workspace .\demo_target
 
 密钥只从环境变量读取；请不要把它写进仓库、`.env`、README 或录屏。更多变量与录屏流程见 [docs/run-and-demo.md](docs/run-and-demo.md)。
 
+当 `CODING_AGENT_BASE_URL` 是 `localhost`、`127.0.0.1` 或 `::1` 时，ForgeLite 会自动绕过系统 HTTP 代理直连本地网关；远程 API 保持系统网络配置。
+
 `--thinking low|medium|high` 不是表面标签：Low 默认 8 回合/24k 字符上下文，Medium 为 16/48k，High 为 28/80k，且三档会向模型提供不同的本地规划策略。提供的腕表式组件已改造成三档选择器，可在浏览器打开 [docs/thinking-indicator-demo.html](docs/thinking-indicator-demo.html) 预览。
 
 ## 项目结构
@@ -70,6 +72,8 @@ python -m compileall -q src
 测试集不仅覆盖单个工具，还包含“空工作区 → 创建实现、测试和 README → 执行测试 → 收到最终结论”的完整控制循环测试，因此无需 API key 也能复现 agent 的本地执行链路。
 
 完整设计取舍、运行流程和面试准备见 [docs/design.md](docs/design.md) 与 [docs/interview-qa.md](docs/interview-qa.md)。
+
+真实模型从空工作区一次性生成待办项目的 7 回合验收记录见 [docs/evidence/one-shot-report.md](docs/evidence/one-shot-report.md)，对应结构化日志不含 prompt、文件内容或凭据。
 
 可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；运行 `./video_assets/render_demo_video.ps1` 会生成不含密钥的 1080p 演示视频。
 

@@ -1,11 +1,12 @@
-验证结果
+独立复验结果
 
-test_unique_words_are_lowercase                 OK
-test_word_count_handles_repeated_whitespace     OK
-test_word_count_of_blank_text_is_zero           OK
+test_add_task              OK
+test_list_tasks            OK
+test_done_task             OK
+test_done_invalid_id       OK
+test_done_non_integer_id   OK
 
-Ran 3 tests
-OK
+手工黑盒：add → list → done 正常
+错误 ID：明确报错，exit code = 1
 
-模型不能只“说已经修好”：
-只有 run_command 的真实 exit code = 0 才能作为成功证据。
+模型不能只“说已经完成”：只有本地测试和退出码才是成功证据。

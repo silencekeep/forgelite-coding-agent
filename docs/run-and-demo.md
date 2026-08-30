@@ -24,6 +24,16 @@ python -m unittest discover -s tests -v
 
 ## 2. 推荐的视频演示任务
 
+最能证明“一次性完整交付”的录屏方式是运行：
+
+```powershell
+.\scripts\run_one_shot_demo.ps1
+```
+
+脚本每次创建新的空工作区，让真实模型交付带实现、测试和 README 的命令行待办项目，然后在模型结束后独立再跑一次测试。它不会打印或保存 API key。本项目已用该流程完成真实验收：7 个模型回合、生成项目 5/5 测试通过；证据见 `docs/evidence/one-shot-report.md`。
+
+下面的 bug 修复任务可作为更短的备用录屏：
+
 `demo_target` 是一个刻意带 bug 的独立 Python 项目。开始录屏前，可先确认它失败：
 
 ```powershell
@@ -47,9 +57,9 @@ coding-agent --workspace .\demo_target --thinking high --max-steps 12 --audit-lo
 | 时长 | 画面与讲解 |
 | --- | --- |
 | 0–12 秒 | 标题：ForgeLite，从零实现的本地编程智能体；展示项目树。 |
-| 12–24 秒 | 快速显示失败测试，说明任务是修复真实 bug，测试不可修改。 |
-| 24–78 秒 | 加速播放 agent 的 `list_files`、`read_file`、`replace_in_file`、`run_command` 输出。指出每个工具都由本地 Python 实现。 |
-| 78–100 秒 | 展示通过的三项测试和改动 diff。 |
+| 12–24 秒 | 展示空工作区和 one-shot 任务要求。 |
+| 24–78 秒 | 加速播放 agent 的 `list_files`、三次 `write_file`、失败后自纠正的两次 `run_command`。 |
+| 78–100 秒 | 展示生成的三个文件、5/5 测试和一次黑盒 CLI 操作。 |
 | 100–120 秒 | 讲架构：模型只负责规划，控制循环、工具执行、上下文压缩、LRU 和错误处理全部在本地。 |
 
 用 OBS、系统录屏或任意剪辑软件导出 MP4；建议 1080p/30fps、H.264，检查文件小于 200 MB。视频中不要显示 API key、环境变量值、浏览器密码管理器或用户目录中的敏感文件。

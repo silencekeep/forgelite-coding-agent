@@ -1,15 +1,11 @@
-Agent 的本地执行循环
+真实审计轨迹：7 个模型回合完成
 
-[step 1]  模型选择 list_files
-          → 找到 text_stats.py 与 tests/test_text_stats.py
+[step 1]  list_files      → 确认工作区为空
+[step 2]  write_file      → 创建 todo_app.py
+[step 3]  write_file      → 创建 tests/test_todo_app.py
+[step 4]  write_file      → 创建 README.md
+[step 5]  run_command     → 首次命令失败，错误回传模型
+[step 6]  run_command     → 模型自行更正，5 项测试全部通过
+[step 7]  model_final     → 汇总实现、测试与用法
 
-[step 2]  模型选择 read_file
-          → 对照实现与失败断言，定位 split(" ")
-
-[step 3]  模型选择 replace_in_file
-          → 改为默认 split()，它按任意空白拆分并忽略空项
-
-[step 4]  模型选择 run_command
-          → python -m unittest discover -s tests -v
-
-每一项工具均由本机 Python 执行，输出作为 role=tool 回传给模型。
+每项工具由本机 Python 执行；模型没有直接文件或终端权限。
