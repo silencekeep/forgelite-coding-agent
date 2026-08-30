@@ -72,6 +72,29 @@ for ($index = 0; $index -lt $scenes.Count; $index++) {
     $labels += "[$($index):v]"
 }
 
-& $ffmpeg -hide_banner -loglevel error -y @inputArguments -filter_complex "$labels`concat=n=$($scenes.Count):v=1:a=0[v]" -map "[v]" -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p -movflags +faststart $target
-if ($LASTEXITCODE -ne 0) { throw "ffmpeg composition failed" }
+$silentVideo = Join-Path $temporary "forgelite-silent.mp4"
+& $ffmpeg -hide_banner -loglevel error -y @inputArguments -filter_complex "$labels`concat=n=$($scenes.Count):v=1:a=0[v]" -map "[v]" -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p $silentVideo
+if ($LASTEXITCODE -ne 0) { throw "ffmpeg video composition failed" }
+
+Add-Type -AssemblyName System.Speech
+$speaker = [System.Speech.Synthesis.SpeechSynthesizer]::new()
+try {
+    $chineseVoice = $speaker.GetInstalledVoices() |
+        Where-Object { $_.VoiceInfo.Culture.Name -eq "zh-CN" } |
+        Select-Object -First 1
+    if (-not $chineseVoice) { throw "A zh-CN Windows speech voice is required for narration." }
+    $speaker.SelectVoice($chineseVoice.VoiceInfo.Name)
+    $speaker.Rate = 2
+    $narrationText = Get-Content -LiteralPath (Join-Path $assets "narration.md") -Raw -Encoding utf8
+    $narrationText = ($narrationText -replace '(?m)^#.*$', '' -replace '[`“”]', '').Trim()
+    $narrationWave = Join-Path $temporary "forgelite-narration.wav"
+    $speaker.SetOutputToWaveFile($narrationWave)
+    $speaker.Speak($narrationText)
+}
+finally {
+    $speaker.Dispose()
+}
+
+& $ffmpeg -hide_banner -loglevel error -y -i $silentVideo -i $narrationWave -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 128k -af apad -shortest -movflags +faststart $target
+if ($LASTEXITCODE -ne 0) { throw "ffmpeg narration composition failed" }
 Get-Item -LiteralPath $target | Select-Object FullName,Length,LastWriteTime
