@@ -92,7 +92,7 @@ Web 控制台通过 `search_text` 定点分析当前仓库的 3 回合真实验�
 
 只从 tracked files 导出全新快照后重新测试并构建 wheel 的结果见 [docs/evidence/release-candidate-report.md](docs/evidence/release-candidate-report.md)。
 
-可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；在装有 FFmpeg、Edge 和中文系统语音的 Windows 上运行 `./video_assets/render_demo_video.ps1`，会生成不含密钥的 1080p 工作过程视频，以任务、创建、失败修正和完成四个真实审计阶段为主体并合成中文旁白。
+可复现的两分钟内 MP4 底片、配音稿和神经语音生成脚本在 [video_assets](video_assets)。最终成片使用阿里开源 [Qwen3-TTS 0.6B CustomVoice](https://github.com/QwenLM/Qwen3-TTS) 的 Serena 中文音色；FFmpeg 会把旁白合入由任务、创建、失败修正和完成四个真实审计阶段组成的 1080p 画面。未提供神经旁白文件时，Windows 中文系统语音仍可作为轻量回退。
 
 账号与姓名相关的最终提交步骤见 [docs/submission-checklist.md](docs/submission-checklist.md)；`scripts/prepare_submission.ps1` 会检查 README、视频并生成姓名命名的 ZIP。
 

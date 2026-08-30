@@ -1,11 +1,13 @@
 # Generates a credential-free 1080p MP4. Run from the repository root.
 # It is intentionally source-controlled so the resulting video is reproducible.
 param(
-    [string]$Output = "deliverables/ForgeLite-demo.mp4"
+    [string]$Output = "deliverables/ForgeLite-demo.mp4",
+    [string]$NarrationWave = ""
 )
 
 $ErrorActionPreference = "Stop"
 $ffmpeg = (Get-Command ffmpeg -ErrorAction Stop).Source
+$ffprobe = (Get-Command ffprobe -ErrorAction Stop).Source
 $root = (Get-Location).Path
 $assets = Join-Path $root "video_assets"
 $target = Join-Path $root $Output
@@ -79,25 +81,36 @@ $silentVideo = Join-Path $temporary "forgelite-silent.mp4"
 & $ffmpeg -hide_banner -loglevel error -y @inputArguments -filter_complex "$labels`concat=n=$($scenes.Count):v=1:a=0[v]" -map "[v]" -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p $silentVideo
 if ($LASTEXITCODE -ne 0) { throw "ffmpeg video composition failed" }
 
-Add-Type -AssemblyName System.Speech
-$speaker = [System.Speech.Synthesis.SpeechSynthesizer]::new()
-try {
-    $chineseVoice = $speaker.GetInstalledVoices() |
-        Where-Object { $_.VoiceInfo.Culture.Name -eq "zh-CN" } |
-        Select-Object -First 1
-    if (-not $chineseVoice) { throw "A zh-CN Windows speech voice is required for narration." }
-    $speaker.SelectVoice($chineseVoice.VoiceInfo.Name)
-    $speaker.Rate = 3
-    $narrationText = Get-Content -LiteralPath (Join-Path $assets "narration.md") -Raw -Encoding utf8
-    $narrationText = ($narrationText -replace '(?m)^#.*$', '' -replace '[`“”]', '').Trim()
-    $narrationWave = Join-Path $temporary "forgelite-narration.wav"
-    $speaker.SetOutputToWaveFile($narrationWave)
-    $speaker.Speak($narrationText)
+if ($NarrationWave) {
+    $narrationWavePath = (Resolve-Path -LiteralPath $NarrationWave -ErrorAction Stop).Path
 }
-finally {
-    $speaker.Dispose()
+else {
+    Add-Type -AssemblyName System.Speech
+    $speaker = [System.Speech.Synthesis.SpeechSynthesizer]::new()
+    try {
+        $chineseVoice = $speaker.GetInstalledVoices() |
+            Where-Object { $_.VoiceInfo.Culture.Name -eq "zh-CN" } |
+            Select-Object -First 1
+        if (-not $chineseVoice) { throw "A zh-CN Windows speech voice is required for narration." }
+        $speaker.SelectVoice($chineseVoice.VoiceInfo.Name)
+        $speaker.Rate = 3
+        $narrationText = Get-Content -LiteralPath (Join-Path $assets "narration.md") -Raw -Encoding utf8
+        $narrationText = ($narrationText -replace '(?m)^#.*$', '' -replace '[`“”]', '').Trim()
+        $narrationWavePath = Join-Path $temporary "forgelite-narration.wav"
+        $speaker.SetOutputToWaveFile($narrationWavePath)
+        $speaker.Speak($narrationText)
+    }
+    finally {
+        $speaker.Dispose()
+    }
 }
 
-& $ffmpeg -hide_banner -loglevel error -y -i $silentVideo -i $narrationWave -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 128k -af apad -shortest -movflags +faststart $target
+$narrationDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $narrationWavePath)
+$videoDuration = [double](& $ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $silentVideo)
+if ($narrationDuration -gt $videoDuration) {
+    throw "Narration is $([math]::Round($narrationDuration, 2)) seconds, longer than the $([math]::Round($videoDuration, 2))-second video."
+}
+
+& $ffmpeg -hide_banner -loglevel error -y -i $silentVideo -i $narrationWavePath -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 128k -af "loudnorm=I=-16:TP=-1.5:LRA=11,apad" -shortest -movflags +faststart $target
 if ($LASTEXITCODE -ne 0) { throw "ffmpeg narration composition failed" }
 Get-Item -LiteralPath $target | Select-Object FullName,Length,LastWriteTime

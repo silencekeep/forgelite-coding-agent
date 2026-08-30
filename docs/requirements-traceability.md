@@ -18,7 +18,7 @@
 | Low/Medium/High 可交互调节 | 三档 profile + loopback Web 腕表选择器 | profile 单测、Web 传参单测、`web-search-report.md` | 已验证 |
 | ReAct 工作过程可见 | `/api/run-stream` 手写 NDJSON；浅色 UI 增量渲染 Reason/Act/Observe | 流顺序、HTTP content type、终止错误记录测试；视频关键帧 | 已验证 |
 | README.txt ≤1000 字 | 根目录 `README.txt` | 验收脚本动态检查字符数 | 已验证 |
-| MP4 ≤2分钟、≤200MB | 可复现 FFmpeg 渲染脚本 | 112 秒、2,439,689 字节、工作过程关键帧检查 | 已验证 |
+| MP4 ≤2分钟、≤200MB | Qwen3-TTS 神经旁白 + 可复现 FFmpeg 渲染脚本 | 112 秒、2,999,722 字节、−16.6 LUFS、工作过程关键帧检查 | 已验证 |
 | 公开 Git 仓库与真实地址 | README 与 `origin` 均指向 `silencekeep/forgelite-coding-agent` | 匿名 HTTP 200；远端 `main` SHA 与本地 `HEAD` 一致 | 已验证 |
 | 姓名命名的最终 ZIP | `prepare_submission.ps1` | 仅含根目录 README/视频；名称、哈希、时长和大小复核 | 已验证 |
 

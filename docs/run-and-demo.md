@@ -76,10 +76,17 @@ coding-agent --workspace .\demo_target --thinking high --max-steps 12 --audit-lo
 
 ## 4. 可复现 MP4 底片
 
-项目已提供不含密钥的 112 秒、1080p/H.264 工作过程视频。它依次呈现真实任务、创建文件、首次测试失败、模型自行修正、测试通过和最终总结；实现讲解放在同一工作台画面的旁白中，而不是用大段幻灯片替代过程。生成命令为：
+项目已提供不含密钥的 112 秒、1080p/H.264 工作过程视频。它依次呈现真实任务、创建文件、首次测试失败、模型自行修正、测试通过和最终总结；实现讲解放在同一工作台画面的旁白中，而不是用大段幻灯片替代过程。
+
+最终成片使用阿里开源的 [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) `0.6B-CustomVoice` 模型和 Serena 中文音色。语音生成是提交素材制作步骤，不是 ForgeLite 的运行依赖；模型权重和 WAV 都放在已忽略的 `artifacts/`，不会进入仓库。当前验证环境是 Python 3.12、`qwen-tts 0.1.1`、`torch 2.6.0+cu124`、RTX 4060 8GB。国内可按官方建议用 ModelScope 下载同一模型：
 
 ```powershell
-.\video_assets\render_demo_video.ps1
+python -m venv .tts-venv
+.\.tts-venv\Scripts\python.exe -m pip install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+.\.tts-venv\Scripts\python.exe -m pip install qwen-tts==0.1.1 modelscope==1.39.1
+.\.tts-venv\Scripts\python.exe -c "from modelscope import snapshot_download; snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', local_dir='artifacts/models/Qwen3-TTS-12Hz-0.6B-CustomVoice')"
+.\.tts-venv\Scripts\python.exe .\video_assets\render_neural_narration.py --model .\artifacts\models\Qwen3-TTS-12Hz-0.6B-CustomVoice --speaker Serena --language Chinese --output .\artifacts\neural-narration\qwen3-tts-serena.wav
+.\video_assets\render_demo_video.ps1 -NarrationWave .\artifacts\neural-narration\qwen3-tts-serena.wav
 ```
 
-会生成 `deliverables/ForgeLite-demo.mp4`，通常只有数 MB，远小于 200 MB 上限。脚本让本机 Edge 无联网渲染四个由真实审计轨迹构成的 UI 阶段，再用 FFmpeg 合成画面，并以 Windows 中文语音朗读 `video_assets/narration.md`；最终 AAC 旁白 110.28 秒，视频 112 秒，结尾不会被截断。提交前建议用你自己的录音替换合成旁白，这样现场介绍更自然。若网关可用，也可替换为相同任务的实时工作台录屏，但不得显示密钥。
+CUDA 版 PyTorch 应按显卡驱动从 [PyTorch 官方安装页](https://pytorch.org/get-started/locally/) 选择；上面是本次通过验证的 CUDA 12.4 组合。神经旁白为 103.24 秒，合成脚本会拒绝比画面更长的音频，并用 FFmpeg 统一响度。最终生成 `deliverables/ForgeLite-demo.mp4`，为 112 秒、1920×1080、H.264 + AAC、约 3 MB，远小于 200 MB 上限。脚本在未传 `-NarrationWave` 时会改用 Windows 中文系统语音，便于没有显卡或不想下载权重时重建底片。
