@@ -29,6 +29,7 @@ ASSETS = {
     "/watch-indicator.svg": ("watch-indicator.svg", "image/svg+xml"),
 }
 AgentFactory = Callable[..., Any]
+StreamEmitter = Callable[[dict[str, Any]], None]
 
 
 class AgentBusyError(RuntimeError):
@@ -53,6 +54,49 @@ class ConsoleApplication:
         self._run_lock = threading.Lock()
 
     def run(self, payload: Any) -> dict[str, Any]:
+        task, config = self._prepare_run(payload)
+        events: list[dict[str, Any]] = []
+
+        def audit(event: str, fields: dict[str, Any]) -> None:
+            events.append({"event": event, **fields})
+
+        result = self._execute(task, config, audit)
+        return {
+            "ok": True,
+            "result": result,
+            "thinking": config.thinking_level,
+            "events": events,
+        }
+
+    def run_stream(self, payload: Any, emit: StreamEmitter) -> None:
+        """Run one agent and emit credential-safe NDJSON records as work happens."""
+
+        task, config = self._prepare_run(payload)
+        event_count = 0
+
+        def audit(event: str, fields: dict[str, Any]) -> None:
+            nonlocal event_count
+            event_count += 1
+            emit({"type": "event", "event": event, **fields})
+
+        result = self._execute(
+            task,
+            config,
+            audit,
+            on_started=lambda: emit(
+                {"type": "status", "state": "started", "thinking": config.thinking_level}
+            ),
+        )
+        emit(
+            {
+                "type": "result",
+                "result": result,
+                "thinking": config.thinking_level,
+                "event_count": event_count,
+            }
+        )
+
+    def _prepare_run(self, payload: Any) -> tuple[str, AgentConfig]:
         if not isinstance(payload, dict):
             raise ValueError("Request body must be a JSON object.")
         task = payload.get("task")
@@ -68,29 +112,30 @@ class ConsoleApplication:
             model_override=self.model_override,
             thinking_override=profile.name.lower(),
         )
-        events: list[dict[str, Any]] = []
+        return task.strip(), config
 
-        def audit(event: str, fields: dict[str, Any]) -> None:
-            events.append({"event": event, **fields})
-
+    def _execute(
+        self,
+        task: str,
+        config: AgentConfig,
+        audit: Callable[[str, dict[str, Any]], None],
+        *,
+        on_started: Callable[[], None] | None = None,
+    ) -> str:
         if not self._run_lock.acquire(blocking=False):
             raise AgentBusyError("Another agent task is already running for this workspace.")
         try:
+            if on_started is not None:
+                on_started()
             agent = self.agent_factory(
                 config,
                 str(self.workspace),
                 on_event=lambda _message: None,
                 audit_sink=audit,
             )
-            result = agent.run_task(task.strip())
+            return agent.run_task(task)
         finally:
             self._run_lock.release()
-        return {
-            "ok": True,
-            "result": result,
-            "thinking": config.thinking_level,
-            "events": events,
-        }
 
 
 class ConsoleServer(ThreadingHTTPServer):
@@ -116,15 +161,15 @@ class ConsoleHandler(BaseHTTPRequestHandler):
         self._send(200, body, content_type)
 
     def do_POST(self) -> None:
-        if urlsplit(self.path).path != "/api/run":
+        path = urlsplit(self.path).path
+        if path == "/api/run-stream":
+            self._stream_run()
+            return
+        if path != "/api/run":
             self._json_response(404, {"ok": False, "error": "Not found."})
             return
         try:
-            raw_length = self.headers.get("Content-Length", "")
-            length = int(raw_length)
-            if not 0 < length <= MAX_REQUEST_BYTES:
-                raise ValueError(f"Request body must be 1..{MAX_REQUEST_BYTES} bytes.")
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            payload = self._read_json_payload()
             result = self.server.application.run(payload)
             self._json_response(200, result)
         except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
@@ -137,6 +182,62 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             self._json_response(409, {"ok": False, "error": str(exc)})
         except Exception as exc:
             self._json_response(500, {"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+
+    def _stream_run(self) -> None:
+        started = False
+
+        def emit(record: dict[str, Any]) -> None:
+            nonlocal started
+            if not started:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header(
+                    "Content-Security-Policy",
+                    "default-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self'",
+                )
+                self.send_header("Connection", "close")
+                self.end_headers()
+                started = True
+            line = json.dumps(record, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
+            self.wfile.write(line)
+            self.wfile.flush()
+
+        try:
+            payload = self._read_json_payload()
+            self.server.application.run_stream(payload, emit)
+        except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            self._stream_error(started, emit, 400, str(exc))
+        except ModelRequestError as exc:
+            self._stream_error(started, emit, 502, str(exc))
+        except AgentStepLimitError as exc:
+            self._stream_error(started, emit, 422, str(exc))
+        except AgentBusyError as exc:
+            self._stream_error(started, emit, 409, str(exc))
+        except (BrokenPipeError, ConnectionResetError):
+            # The browser closed the local page while the agent was streaming.
+            pass
+        except Exception as exc:
+            self._stream_error(started, emit, 500, f"{type(exc).__name__}: {exc}")
+        finally:
+            self.close_connection = True
+
+    def _stream_error(self, started: bool, emit: StreamEmitter, status: int, message: str) -> None:
+        if started:
+            try:
+                emit({"type": "error", "status": status, "error": message})
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+        else:
+            self._json_response(status, {"ok": False, "error": message})
+
+    def _read_json_payload(self) -> Any:
+        raw_length = self.headers.get("Content-Length", "")
+        length = int(raw_length)
+        if not 0 < length <= MAX_REQUEST_BYTES:
+            raise ValueError(f"Request body must be 1..{MAX_REQUEST_BYTES} bytes.")
+        return json.loads(self.rfile.read(length).decode("utf-8"))
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"[web] {self.address_string()} - {fmt % args}")

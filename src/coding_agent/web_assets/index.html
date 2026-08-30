@@ -3,38 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ForgeLite Agent Console</title>
+  <title>ForgeLite Agent Workspace</title>
   <link rel="stylesheet" href="thinking-indicator.css">
   <link rel="stylesheet" href="console.css">
 </head>
 <body>
-  <main class="shell">
-    <header class="brand">
-      <div><p class="eyebrow">Local coding agent</p><h1>ForgeLite</h1><p class="subtitle">模型负责规划，本地程序负责执行与证据。</p></div>
-      <div class="thinking-control" data-thinking-control data-level="medium">
-        <button class="thinking-trigger" data-thinking-trigger type="button" aria-expanded="false">
-          <img class="thinking-icon" src="watch-indicator.svg" alt=""><span data-thinking-label>Medium</span><span class="thinking-chevron">⌄</span>
-        </button>
-        <div class="thinking-menu" data-thinking-menu hidden>
-          <button class="thinking-option" data-thinking-option="low">Low — 快速、较少回合</button>
-          <button class="thinking-option" data-thinking-option="medium" aria-current="true">Medium — 平衡</button>
-          <button class="thinking-option" data-thinking-option="high">High — 更充分检查与验证</button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand-lockup" href="/" aria-label="ForgeLite home">
+        <span class="brand-mark">F</span>
+        <span><strong>ForgeLite</strong><small>Coding agent</small></span>
+      </a>
+      <button class="new-task" type="button" disabled><span>＋</span> New task</button>
+      <nav class="side-nav" aria-label="Agent capabilities">
+        <p>WORKSPACE</p>
+        <span class="nav-item active"><span class="nav-icon">⌁</span> Agent run</span>
+        <span class="nav-item"><span class="nav-icon">⌘</span> Local tools</span>
+        <span class="nav-item"><span class="nav-icon">◫</span> LRU context</span>
+      </nav>
+      <div class="safety-card">
+        <span class="status-dot"></span>
+        <div><strong>Local execution</strong><small>127.0.0.1 · workspace fixed</small></div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="breadcrumb">ForgeLite / Agent session</p>
+          <h1>Build with an autonomous agent</h1>
         </div>
-      </div>
-    </header>
-    <section class="panel">
-      <form id="taskForm">
-        <label for="task" class="eyebrow">Programming task</label>
-        <textarea id="task" required placeholder="例如：检查这个工作区，修复失败测试并运行完整验证。"></textarea>
-        <div class="actions"><span class="subtitle">工作区由启动命令固定，浏览器不能更改。</span><button id="runButton" class="run" type="submit">Run agent</button></div>
+        <div class="thinking-control" data-thinking-control data-level="medium">
+          <button class="thinking-trigger" data-thinking-trigger type="button" aria-expanded="false">
+            <img class="thinking-icon" src="watch-indicator.svg" alt=""><span class="thinking-prefix">Thinking</span><span data-thinking-label>Medium</span><span class="thinking-chevron">⌄</span>
+          </button>
+          <div class="thinking-menu" data-thinking-menu hidden>
+            <button class="thinking-option" data-thinking-option="low"><strong>Low</strong><span>快速执行 · 8 回合 / 24k</span></button>
+            <button class="thinking-option" data-thinking-option="medium" aria-current="true"><strong>Medium</strong><span>平衡规划 · 16 回合 / 48k</span></button>
+            <button class="thinking-option" data-thinking-option="high"><strong>High</strong><span>充分验证 · 28 回合 / 80k</span></button>
+          </div>
+        </div>
+      </header>
+
+      <section class="session" aria-live="polite">
+        <div id="emptyState" class="empty-state">
+          <span class="empty-mark">⌁</span>
+          <h2>What should ForgeLite build?</h2>
+          <p>Agent 会读取工作区、修改文件、运行命令并根据结果继续行动。</p>
+        </div>
+
+        <article id="userTurn" class="turn user-turn" hidden>
+          <div class="avatar user-avatar">W</div>
+          <div><p class="turn-label">You</p><p id="userTask"></p></div>
+        </article>
+
+        <section id="activityPanel" class="activity-panel" hidden>
+          <header class="activity-header">
+            <div><span class="pulse-dot"></span><strong>ReAct activity</strong></div>
+            <span id="activityCount">0 events</span>
+          </header>
+          <ol id="timeline" class="react-list"></ol>
+          <p class="react-note">Reason 仅表示模型正在规划下一步；界面不展示或伪造隐藏思维链。</p>
+        </section>
+
+        <article id="assistantTurn" class="turn assistant-turn" hidden>
+          <div class="avatar agent-avatar">F</div>
+          <div class="turn-content"><p class="turn-label">ForgeLite</p><pre id="result"></pre></div>
+        </article>
+      </section>
+
+      <form id="taskForm" class="composer">
+        <label for="task" class="sr-only">Programming task</label>
+        <textarea id="task" required placeholder="Describe a programming task… 例如：从空目录创建待办 CLI，编写测试并运行验证。"></textarea>
+        <div class="composer-footer">
+          <div class="composer-hints"><span>⌘ Local tools</span><span>▣ LRU Compact</span><span>◇ ReAct stream</span></div>
+          <button id="runButton" class="run" type="submit"><span>Run agent</span><span class="run-arrow">↑</span></button>
+        </div>
       </form>
-      <p id="status" class="status">Ready.</p>
-      <div class="result-grid">
-        <article class="card"><h2>Agent result</h2><pre id="result">等待任务…</pre></article>
-        <aside class="card"><h2>Credential-safe timeline</h2><ol id="timeline"></ol></aside>
-      </div>
-    </section>
-  </main>
+      <p id="status" class="status">Ready · 工作区由启动命令固定</p>
+    </main>
+  </div>
   <script src="thinking-indicator.js"></script>
   <script src="console.js"></script>
 </body>

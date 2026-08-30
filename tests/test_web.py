@@ -31,6 +31,19 @@ class StepLimitedAgent(FakeAgent):
         raise AgentStepLimitError("Stopped at the configured limit.")
 
 
+class BlockingStreamAgent(FakeAgent):
+    started = threading.Event()
+    release = threading.Event()
+
+    def run_task(self, task):
+        self.audit_sink("run_started", {"task_characters": len(task)})
+        self.started.set()
+        if not self.release.wait(timeout=3):
+            raise TimeoutError("Test did not release the streaming agent.")
+        self.audit_sink("run_finished", {"outcome": "model_final"})
+        return "Streaming task completed."
+
+
 class ConsoleApplicationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.environment = patch.dict(
@@ -52,6 +65,18 @@ class ConsoleApplicationTests(unittest.TestCase):
         self.assertEqual(response["thinking"], "high")
         self.assertEqual(FakeAgent.last_config.max_steps, 28)
         self.assertEqual(response["events"][-1]["outcome"], "model_final")
+
+    def test_stream_emits_status_events_and_result_in_order(self) -> None:
+        records = []
+        self.application.run_stream(
+            {"task": "Inspect the project.", "thinking": "high"},
+            records.append,
+        )
+        self.assertEqual(records[0], {"type": "status", "state": "started", "thinking": "high"})
+        self.assertEqual(records[1]["event"], "run_started")
+        self.assertEqual(records[-1]["type"], "result")
+        self.assertEqual(records[-1]["result"], "Fake task completed.")
+        self.assertEqual(records[-1]["event_count"], 3)
 
     def test_invalid_payloads_are_rejected(self) -> None:
         for payload in (None, {}, {"task": ""}, {"task": "ok", "thinking": "extreme"}):
@@ -78,10 +103,13 @@ class ConsoleApplicationTests(unittest.TestCase):
         with opener.open(base + "/", timeout=5) as response:
             html = response.read().decode("utf-8")
             self.assertIn("ForgeLite", html)
+            self.assertIn("ReAct activity", html)
             self.assertIn("default-src 'self'", response.headers["Content-Security-Policy"])
         with opener.open(base + "/console.css", timeout=5) as response:
             self.assertIn("text/css", response.headers["Content-Type"])
-            self.assertIn(".result-grid", response.read().decode("utf-8"))
+            css = response.read().decode("utf-8")
+            self.assertIn("color-scheme: light", css)
+            self.assertIn(".react-row", css)
 
         body = json.dumps({"task": "Build it.", "thinking": "low"}).encode("utf-8")
         request = Request(base + "/api/run", data=body, headers={"Content-Type": "application/json"}, method="POST")
@@ -89,6 +117,24 @@ class ConsoleApplicationTests(unittest.TestCase):
             payload = json.loads(response.read().decode("utf-8"))
         self.assertEqual(payload["result"], "Fake task completed.")
         self.assertEqual(payload["thinking"], "low")
+
+        stream_request = Request(
+            base + "/api/run-stream",
+            data=json.dumps({"task": "Build it live.", "thinking": "high"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with opener.open(stream_request, timeout=5) as response:
+            self.assertIn("application/x-ndjson", response.headers["Content-Type"])
+            records = [json.loads(line) for line in response.read().decode("utf-8").splitlines()]
+        self.assertEqual(records[0]["type"], "status")
+        self.assertEqual([record["event"] for record in records if record["type"] == "event"], [
+            "run_started",
+            "tool_called",
+            "run_finished",
+        ])
+        self.assertEqual(records[-1]["type"], "result")
+        self.assertEqual(records[-1]["thinking"], "high")
 
     def test_http_console_reports_step_limit_as_non_success(self) -> None:
         application = ConsoleApplication(".", agent_factory=StepLimitedAgent)
@@ -111,6 +157,53 @@ class ConsoleApplicationTests(unittest.TestCase):
         payload = json.loads(raised.exception.read().decode("utf-8"))
         self.assertFalse(payload["ok"])
         self.assertIn("configured limit", payload["error"])
+
+    def test_stream_reports_step_limit_as_terminal_error_record(self) -> None:
+        application = ConsoleApplication(".", agent_factory=StepLimitedAgent)
+        server = ConsoleServer(("127.0.0.1", 0), application)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        opener = build_opener(ProxyHandler({}))
+        request = Request(
+            f"http://127.0.0.1:{server.server_port}/api/run-stream",
+            data=json.dumps({"task": "Keep going.", "thinking": "medium"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with opener.open(request, timeout=5) as response:
+            records = [json.loads(line) for line in response.read().decode("utf-8").splitlines()]
+        self.assertEqual(records[0]["type"], "status")
+        self.assertEqual(records[-1]["type"], "error")
+        self.assertEqual(records[-1]["status"], 422)
+        self.assertIn("configured limit", records[-1]["error"])
+
+    def test_stream_flushes_status_before_agent_finishes(self) -> None:
+        BlockingStreamAgent.started.clear()
+        BlockingStreamAgent.release.clear()
+        self.addCleanup(BlockingStreamAgent.release.set)
+        application = ConsoleApplication(".", agent_factory=BlockingStreamAgent)
+        server = ConsoleServer(("127.0.0.1", 0), application)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        opener = build_opener(ProxyHandler({}))
+        request = Request(
+            f"http://127.0.0.1:{server.server_port}/api/run-stream",
+            data=json.dumps({"task": "Stream it.", "thinking": "medium"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with opener.open(request, timeout=5) as response:
+            first = json.loads(response.readline().decode("utf-8"))
+            self.assertEqual(first["type"], "status")
+            self.assertTrue(BlockingStreamAgent.started.wait(timeout=1))
+            self.assertFalse(BlockingStreamAgent.release.is_set())
+            BlockingStreamAgent.release.set()
+            remaining = [json.loads(line) for line in response.read().decode("utf-8").splitlines()]
+        self.assertEqual(remaining[-1]["type"], "result")
 
 
 if __name__ == "__main__":
