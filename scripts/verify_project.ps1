@@ -36,6 +36,15 @@ try {
         throw "README.txt still contains the repository URL placeholder."
     }
     if ($SubmissionReady) {
+        $worktreeState = git status --porcelain
+        if ($LASTEXITCODE -ne 0) { throw "Git working-tree status could not be read." }
+        if ($worktreeState) { throw "Git working tree is not clean." }
+
+        $branch = git branch --show-current
+        if ($LASTEXITCODE -ne 0 -or $branch.Trim() -ne "main") {
+            throw "Submission must be made from the local main branch."
+        }
+
         $repositoryMatch = [regex]::Match($readme, 'Git 仓库地址：(https://github\.com/[^/\s]+/[^\s]+)')
         if (-not $repositoryMatch.Success) {
             throw "README.txt does not contain a valid GitHub repository URL."
@@ -57,6 +66,19 @@ try {
         }
         if ($publicCheck.StatusCode -ne 200) {
             throw "Public repository returned HTTP $($publicCheck.StatusCode): $repositoryUrl"
+        }
+
+        $localHead = (git rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $localHead) {
+            throw "Local HEAD could not be resolved."
+        }
+        $remoteMainLine = git ls-remote origin refs/heads/main 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $remoteMainLine) {
+            throw "Remote main branch could not be resolved."
+        }
+        $remoteMain = ($remoteMainLine -split '\s+')[0]
+        if ($remoteMain -ne $localHead) {
+            throw "Remote main is not at local HEAD. Push the complete local history first."
         }
     }
 
