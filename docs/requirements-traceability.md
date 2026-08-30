@@ -18,7 +18,7 @@
 | Low/Medium/High 可交互调节 | 三档 profile + loopback Web 腕表选择器 | profile 单测、Web 传参单测、`web-search-report.md` | 已验证 |
 | README.txt ≤1000 字 | 根目录 `README.txt` | 验收脚本动态检查字符数 | 已验证 |
 | MP4 ≤2分钟、≤200MB | 可复现 FFmpeg 渲染脚本 | 112 秒、约 1.3 MB、抽帧检查 | 已验证 |
-| 公开 Git 仓库与真实地址 | README 已写入目标地址；发布后配置 `origin` | 匿名 HTTP 200；远端 `main` SHA 与本地 `HEAD` 一致 | 待公开推送 |
+| 公开 Git 仓库与真实地址 | README 与 `origin` 均指向 `silencekeep/forgelite-coding-agent` | 匿名 HTTP 200；远端 `main` SHA 与本地 `HEAD` 一致 | 已验证 |
 | 姓名命名的最终 ZIP | `prepare_submission.ps1` | README/视频校验后生成 `<姓名>.zip` | 待姓名 |
 
 ## 真实 one-shot 证据边界
