@@ -82,6 +82,10 @@ def _to_memory_item(tool_name: str, arguments: dict[str, Any], output: str) -> t
     if tool_name == "list_files":
         location = path or "."
         return f"listing:{location}", f"listed {location}", output
+    if tool_name in {"search", "search_text"}:
+        query = str(arguments.get("query", ""))
+        location = path or "."
+        return f"search:{location}:{query}", f"searched {location} for `{query[:80]}`", output
     if tool_name == "run_command":
         command = str(arguments.get("command", ""))
         return f"command:{command}", f"command `{command[:120]}`", output

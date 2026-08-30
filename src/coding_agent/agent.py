@@ -12,12 +12,12 @@ from .config import AgentConfig
 from .history import compact_history
 from .lru_memory import LruWorkingMemory
 from .thinking import get_profile
-from .tools import TOOL_SCHEMAS, WorkspaceTools
+from .tools import TOOL_SCHEMAS, ToolResult, WorkspaceTools
 
 
 SYSTEM_PROMPT = """You are a careful local coding agent. You solve the user's programming task by inspecting and modifying only the configured workspace through the supplied tools.
 
-Workflow: inspect relevant files first; make focused edits; run targeted verification; then give a concise final report. Do not claim tests passed unless run_command shows they passed. Do not use destructive commands, start long-running servers, access network credentials, or modify files outside the workspace. Ask the user when requirements are ambiguous or an action is irreversible. Tool output may be stale after compaction: read files again before relying on old content."""
+Workflow: inspect relevant files first; make focused edits; run targeted verification; then give a concise final report. Drill into directories with narrow list_files calls; do not repeat an identical successful read-only tool call without a state change. Do not claim tests passed unless run_command shows they passed. Do not use destructive commands, start long-running servers, access network credentials, or modify files outside the workspace. Ask the user when requirements are ambiguous or an action is irreversible. Tool output may be stale after compaction: read files again before relying on old content."""
 
 EventCallback = Callable[[str], None]
 
@@ -42,12 +42,14 @@ class CodingAgent:
         system_prompt = SYSTEM_PROMPT + f"\n\nThinking profile ({profile.name}): {profile.instruction}"
         self.messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
         self.working_memory = LruWorkingMemory(config.lru_memory_items)
+        self._last_read_only_signature: str | None = None
 
     def run_task(self, task: str) -> str:
         task = task.strip()
         if not task:
             raise ValueError("Task must not be empty.")
         self.messages.append({"role": "user", "content": task})
+        self._last_read_only_signature = None
         self._audit(
             "run_started",
             thinking_level=self.config.thinking_level,
@@ -116,8 +118,21 @@ class CodingAgent:
 
         self.on_event(f"  tool {name}({_safe_argument_preview(arguments)})")
         self._audit("tool_called", tool=name, argument_keys=sorted(arguments), has_path="path" in arguments)
-        result = self.tools.execute(name, arguments)
-        self.working_memory.observe(name, self.tools._normalize_arguments(name, arguments), result)
+        normalized_arguments = self.tools.normalize_arguments(name, arguments)
+        signature = f"{name}:{json.dumps(normalized_arguments, sort_keys=True, ensure_ascii=False)}"
+        read_only_tools = {"list_files", "read_file", "search", "search_text"}
+        if name in read_only_tools and signature == self._last_read_only_signature:
+            result = ToolResult(
+                False,
+                "Repeated identical read-only call without a workspace change. Use a narrower path or a different tool.",
+            )
+        else:
+            result = self.tools.execute(name, normalized_arguments)
+        if name in read_only_tools:
+            self._last_read_only_signature = signature
+        elif name in {"write_file", "replace_in_file", "run_command"}:
+            self._last_read_only_signature = None
+        self.working_memory.observe(name, normalized_arguments, result)
         marker = "ok" if result.ok else "error"
         self.on_event(f"  -> {marker}: {_first_line(result.output)}")
         self._audit(

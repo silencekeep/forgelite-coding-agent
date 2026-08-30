@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from coding_agent.tools import WorkspaceTools
+from coding_agent.tools import TOOL_SCHEMAS, WorkspaceTools
 
 
 class WorkspaceToolsTests(unittest.TestCase):
@@ -27,6 +27,13 @@ class WorkspaceToolsTests(unittest.TestCase):
         self.assertTrue(edited.ok)
         self.assertEqual((self.root / "src/example.txt").read_text(encoding="utf-8"), "one\nthree\n")
 
+    def test_model_visible_tool_set_is_explicit(self) -> None:
+        names = [schema["function"]["name"] for schema in TOOL_SCHEMAS]
+        self.assertEqual(
+            names,
+            ["list_files", "search_text", "read_file", "write_file", "replace_in_file", "run_command"],
+        )
+
     def test_path_escape_is_rejected(self) -> None:
         result = self.tools.execute("read_file", {"path": "../outside.txt"})
         self.assertFalse(result.ok)
@@ -41,8 +48,42 @@ class WorkspaceToolsTests(unittest.TestCase):
         self.assertTrue(listing.ok)
         self.assertIn("notes.txt", listing.output)
 
+    def test_listing_is_shallow_by_default_and_recursive_on_request(self) -> None:
+        (self.root / "nested").mkdir()
+        (self.root / "nested" / "inside.txt").write_text("inside", encoding="utf-8")
+        shallow = self.tools.execute("list_files", {"path": "."})
+        recursive = self.tools.execute("list_files", {"path": ".", "recursive": True})
+        self.assertIn("nested/", shallow.output)
+        self.assertNotIn("inside.txt", shallow.output)
+        self.assertIn("nested/inside.txt", recursive.output)
+
+    def test_search_text_is_literal_bounded_and_filterable(self) -> None:
+        (self.root / "src").mkdir()
+        (self.root / "src" / "first.py").write_text("Alpha.beta\nalpha beta\n", encoding="utf-8")
+        (self.root / "src" / "ignored.txt").write_text("alpha.beta\n", encoding="utf-8")
+        result = self.tools.execute(
+            "search_text",
+            {"query": "alpha.beta", "path": "src", "file_pattern": "*.py", "max_results": 1},
+        )
+        self.assertTrue(result.ok)
+        self.assertIn("src/first.py:1: Alpha.beta", result.output)
+        self.assertNotIn("ignored.txt", result.output)
+        self.assertNotIn("alpha beta", result.output)
+        self.assertIn("[truncated", result.output)
+
+    def test_search_alias_and_case_sensitivity(self) -> None:
+        (self.root / "notes.txt").write_text("Needle\nneedle\n", encoding="utf-8")
+        result = self.tools.execute("search", {"query": "Needle", "path": "", "case_sensitive": True})
+        self.assertTrue(result.ok)
+        self.assertIn("notes.txt:1: Needle", result.output)
+        self.assertNotIn("notes.txt:2", result.output)
+
+    def test_search_path_escape_is_rejected(self) -> None:
+        result = self.tools.execute("search_text", {"query": "secret", "path": ".."})
+        self.assertFalse(result.ok)
+        self.assertIn("escapes", result.output)
+
     def test_recursive_delete_is_blocked(self) -> None:
         result = self.tools.execute("run_command", {"command": "rmdir /s /q anything"})
         self.assertFalse(result.ok)
         self.assertIn("blocked", result.output)
-

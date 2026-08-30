@@ -22,6 +22,14 @@ $env:PYTHONPATH = "src"
 python -m unittest discover -s tests -v
 ```
 
+腕表式思考强度选择器已接入真实 agent，而非独立素材。可选 Web 控制台的启动方式为：
+
+```powershell
+coding-agent-web --workspace .\demo_target
+```
+
+它只监听 `127.0.0.1`，启动时固定工作区，并拒绝同一工作区的并发任务。浏览器时间线只显示事件名、工具名、成败和长度等审计字段，不展示 prompt、文件内容或密钥。
+
 ## 2. 推荐的视频演示任务
 
 最能证明“一次性完整交付”的录屏方式是运行：
@@ -64,7 +72,7 @@ coding-agent --workspace .\demo_target --thinking high --max-steps 12 --audit-lo
 
 用 OBS、系统录屏或任意剪辑软件导出 MP4；建议 1080p/30fps、H.264，检查文件小于 200 MB。视频中不要显示 API key、环境变量值、浏览器密码管理器或用户目录中的敏感文件。
 
-录制时可先用浏览器打开 `docs/thinking-indicator-demo.html`，停留两秒展示 Medium/High 选择；随后在终端使用相同的 `--thinking high` 参数。三档不是供应商接口的装饰字段：它会改变本地提示策略和默认资源预算。
+录制时可先启动 `coding-agent-web`，展示腕表菜单并选择 Medium/High；随后提交只读分析任务，或在终端使用相同的 `--thinking high` 参数执行 one-shot。三档不是供应商接口的装饰字段：Web 和 CLI 都会把它映射到相同的本地提示策略与默认资源预算。若只想离线预览组件，也可打开 `docs/thinking-indicator-demo.html`。
 
 ## 4. 可复现 MP4 底片
 

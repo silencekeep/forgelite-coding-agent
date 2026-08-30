@@ -25,6 +25,17 @@ class LruMemoryTests(unittest.TestCase):
         self.assertIn("old.py", rendered)
         self.assertIn("new.py", rendered)
 
+    def test_search_observation_is_compacted(self) -> None:
+        memory = LruWorkingMemory(capacity=2, observation_limit=80)
+        memory.observe(
+            "search_text",
+            {"path": "src", "query": "CodingAgent"},
+            ToolResult(True, "src/coding_agent/agent.py:25: class CodingAgent:"),
+        )
+        rendered = memory.render(1_000)
+        self.assertIn("searched src for `CodingAgent`", rendered)
+        self.assertIn("agent.py:25", rendered)
+
     def test_history_is_compacted(self) -> None:
         messages = [{"role": "system", "content": "rules"}]
         messages.extend({"role": "user", "content": f"turn-{index} " + "x" * 900} for index in range(6))
@@ -97,6 +108,41 @@ class AgentLoopTests(unittest.TestCase):
         self.assertEqual(final, "Inspection complete.")
         self.assertEqual(len(client.requests), 2)
         self.assertTrue(any("Recent workspace memory" in str(message.get("content")) for message in client.requests[1]))
+
+    def test_identical_consecutive_read_only_call_is_rejected(self) -> None:
+        repeated_call = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "id": "repeat",
+                                "type": "function",
+                                "function": {"name": "list_files", "arguments": '{"path":"."}'},
+                            }
+                        ],
+                    }
+                }
+            ]
+        }
+        with tempfile.TemporaryDirectory() as root:
+            client = ScriptedClient()
+            first_call = json.loads(json.dumps(repeated_call))
+            first_call["choices"][0]["message"]["tool_calls"][0]["id"] = "first"
+            client.responses = [
+                first_call,
+                repeated_call,
+                {"choices": [{"message": {"content": "Recovered from repetition."}}]},
+            ]
+            config = AgentConfig("not-used", "http://example.invalid/v1", "fake", 4, 8_000, 5, 3)
+            agent = CodingAgent(config, root, client=client)
+            final = agent.run_task("Inspect once, then stop.")
+        self.assertEqual(final, "Recovered from repetition.")
+        tool_messages = [message for message in agent.messages if message.get("role") == "tool"]
+        self.assertIn('"ok": true', tool_messages[0]["content"])
+        self.assertIn('"ok": false', tool_messages[1]["content"])
+        self.assertIn("Repeated identical", tool_messages[1]["content"])
 
     def test_audit_events_exclude_task_and_file_content(self) -> None:
         events: list[tuple[str, dict]] = []

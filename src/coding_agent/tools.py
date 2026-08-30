@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Callable
 
 
 MAX_FILE_BYTES = 200_000
 MAX_COMMAND_OUTPUT = 12_000
+MAX_LIST_OUTPUT = 12_000
 
 
 TOOL_SCHEMAS: list[dict[str, Any]] = [
@@ -27,7 +28,30 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "path": {"type": "string", "description": "Relative directory path, default is workspace root."},
                     "max_entries": {"type": "integer", "minimum": 1, "maximum": 500},
+                    "recursive": {
+                        "type": "boolean",
+                        "description": "List all descendants when true. Default false lists only the current directory.",
+                    },
                 },
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_text",
+            "description": "Search UTF-8 text files inside the workspace for a literal string. Returns path, line number and a short matching line.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Non-empty literal text to find."},
+                    "path": {"type": "string", "description": "Relative file or directory, default workspace root."},
+                    "file_pattern": {"type": "string", "description": "Optional glob such as *.py, default *."},
+                    "case_sensitive": {"type": "boolean", "description": "Default false."},
+                    "max_results": {"type": "integer", "minimum": 1, "maximum": 200},
+                },
+                "required": ["query"],
                 "additionalProperties": False,
             },
         },
@@ -122,6 +146,10 @@ class WorkspaceTools:
         self.command_timeout_seconds = command_timeout_seconds
         self._handlers: dict[str, Callable[..., ToolResult]] = {
             "list_files": self.list_files,
+            "search_text": self.search_text,
+            # Compatibility alias for models that emit the generic name despite
+            # receiving the more explicit search_text schema.
+            "search": self.search_text,
             "read_file": self.read_file,
             "write_file": self.write_file,
             "replace_in_file": self.replace_in_file,
@@ -133,14 +161,14 @@ class WorkspaceTools:
         if handler is None:
             return ToolResult(False, f"Unknown tool: {name}")
         try:
-            return handler(**self._normalize_arguments(name, arguments))
+            return handler(**self.normalize_arguments(name, arguments))
         except TypeError as exc:
             return ToolResult(False, f"Invalid arguments for {name}: {exc}")
         except (OSError, ValueError, UnicodeError) as exc:
             return ToolResult(False, f"{type(exc).__name__}: {exc}")
 
     @staticmethod
-    def _normalize_arguments(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    def normalize_arguments(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Tolerate common native-tool-call dialects without weakening tool scope."""
         normalized = dict(arguments)
         if name == "read_file":
@@ -148,9 +176,10 @@ class WorkspaceTools:
                 normalized["start_line"] = normalized.pop("line_start")
             if "line_end" in normalized and "end_line" not in normalized:
                 normalized["end_line"] = normalized.pop("line_end")
-        if name == "list_files":
+        if name in {"list_files", "search", "search_text"}:
             if normalized.get("path") == "":
                 normalized["path"] = "."
+        if name == "list_files":
             # A few OpenAI-compatible models habitually request 1,000 entries.
             # It is still bounded, and a larger listing prevents needless repair turns.
             if normalized.get("max_entries") == 1000:
@@ -167,14 +196,17 @@ class WorkspaceTools:
             raise ValueError("Path escapes the configured workspace.") from exc
         return candidate
 
-    def list_files(self, path: str = ".", max_entries: int = 200) -> ToolResult:
+    def list_files(self, path: str = ".", max_entries: int = 200, recursive: bool = False) -> ToolResult:
         if not 1 <= max_entries <= 500:
             raise ValueError("max_entries must be between 1 and 500.")
         directory = self.root if path == "." else self._resolve(path)
         if not directory.is_dir():
             raise ValueError(f"Not a directory: {path}")
         entries: list[str] = []
-        for item in sorted(directory.rglob("*"), key=lambda p: str(p).lower()):
+        used_characters = 0
+        truncated = False
+        candidates = directory.rglob("*") if recursive else directory.iterdir()
+        for item in sorted(candidates, key=lambda p: str(p).lower()):
             try:
                 relative = item.relative_to(self.root)
             except ValueError:
@@ -182,13 +214,82 @@ class WorkspaceTools:
             if any(part in {".git", "__pycache__", ".venv", "node_modules"} for part in relative.parts):
                 continue
             suffix = "/" if item.is_dir() else ""
-            entries.append(relative.as_posix() + suffix)
+            rendered = relative.as_posix() + suffix
+            if used_characters + len(rendered) + 1 > MAX_LIST_OUTPUT:
+                truncated = True
+                break
+            entries.append(rendered)
+            used_characters += len(rendered) + 1
             if len(entries) >= max_entries:
+                truncated = True
                 break
         if not entries:
             return ToolResult(True, "(empty)")
-        tail = "\n[truncated]" if len(entries) == max_entries else ""
+        tail = "\n[truncated; use a narrower path or recursive=false]" if truncated else ""
         return ToolResult(True, "\n".join(entries) + tail)
+
+    def search_text(
+        self,
+        query: str,
+        path: str = ".",
+        file_pattern: str = "*",
+        case_sensitive: bool = False,
+        max_results: int = 100,
+    ) -> ToolResult:
+        if not query:
+            raise ValueError("query must not be empty.")
+        if not 1 <= max_results <= 200:
+            raise ValueError("max_results must be between 1 and 200.")
+        location = self.root if path == "." else self._resolve(path)
+        if not location.exists():
+            raise ValueError(f"Path does not exist: {path}")
+        candidates = [location] if location.is_file() else location.rglob("*")
+        needle = query if case_sensitive else query.casefold()
+        matches: list[str] = []
+        used_characters = 0
+        truncated = False
+        for candidate in sorted(candidates, key=lambda item: str(item).lower()):
+            if not candidate.is_file():
+                continue
+            relative = candidate.relative_to(self.root)
+            if any(part in {".git", "__pycache__", ".venv", "node_modules"} for part in relative.parts):
+                continue
+            try:
+                candidate.resolve().relative_to(self.root)
+            except (OSError, ValueError):
+                # Do not follow a file symlink that points outside the workspace.
+                continue
+            if not fnmatch(relative.as_posix(), file_pattern) and not fnmatch(candidate.name, file_pattern):
+                continue
+            try:
+                if candidate.stat().st_size > MAX_FILE_BYTES:
+                    continue
+                raw = candidate.read_bytes()
+                if b"\x00" in raw:
+                    continue
+                text = raw.decode("utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            for line_number, line in enumerate(text.splitlines(), 1):
+                haystack = line if case_sensitive else line.casefold()
+                if needle not in haystack:
+                    continue
+                compact_line = line.strip()[:300]
+                rendered = f"{relative.as_posix()}:{line_number}: {compact_line}"
+                if used_characters + len(rendered) + 1 > MAX_LIST_OUTPUT:
+                    truncated = True
+                    break
+                matches.append(rendered)
+                used_characters += len(rendered) + 1
+                if len(matches) >= max_results:
+                    truncated = True
+                    break
+            if truncated:
+                break
+        if not matches:
+            return ToolResult(True, "(no matches)")
+        tail = "\n[truncated; narrow path, pattern, or query]" if truncated else ""
+        return ToolResult(True, "\n".join(matches) + tail)
 
     def read_file(self, path: str, start_line: int | None = None, end_line: int | None = None) -> ToolResult:
         target = self._resolve(path)

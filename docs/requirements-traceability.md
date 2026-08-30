@@ -5,7 +5,7 @@
 | 题目要求 | 实现位置 | 验收证据 | 状态 |
 | --- | --- | --- | --- |
 | 与大语言模型交互 | `client.py` 手写 `/chat/completions` HTTP 请求，携带原生 tools schema | 真实 `openai/gpt-oss-120b` one-shot 审计 | 已验证 |
-| 自主读写文件、执行命令 | `tools.py` 的五个本地工具 | 工具单测；真实轨迹包含 list/write/run | 已验证 |
+| 自主读写文件、执行命令 | `tools.py` 的六个本地工具 | 工具单测；真实轨迹包含 list/write/run | 已验证 |
 | 不使用 agent 框架/SDK | `pyproject.toml` 无运行依赖；模型客户端仅用标准库 `urllib` | 可编辑安装与全量测试 | 已验证 |
 | 不依赖服务端文件/代码工具 | 所有工具由 `WorkspaceTools` 在本机执行 | 源码审查；审计轨迹 | 已验证 |
 | 自行维护对话历史 | `CodingAgent.messages` 与 `history.py` | 历史压缩测试 | 已验证 |
@@ -15,7 +15,8 @@
 | 错误处理 | 429/5xx 重试、HTTP 4xx 快速失败、工具错误回传、命令超时 | 真实轨迹 step 5 失败、step 6 自纠正 | 已验证 |
 | API key 不入库 | `AgentConfig` 只读环境变量；`.gitignore` 排除 `.env*` | tracked-files 密钥模式扫描 | 已验证 |
 | 完整一次性交付项目 | High 模式 + 本地工具循环 | 空目录生成待办实现、测试、README；5/5 + 黑盒验证 | 已验证 |
-| README.txt ≤1000 字 | 根目录 `README.txt` | 当前 670 字符 | 已验证 |
+| Low/Medium/High 可交互调节 | 三档 profile + loopback Web 腕表选择器 | profile 单测、Web 传参单测、`web-search-report.md` | 已验证 |
+| README.txt ≤1000 字 | 根目录 `README.txt` | 验收脚本动态检查字符数 | 已验证 |
 | MP4 ≤2分钟、≤200MB | 可复现 FFmpeg 渲染脚本 | 112 秒、约 1.3 MB、抽帧检查 | 已验证 |
 | 公开 Git 仓库与真实地址 | 需用户账号创建并配置 remote | `git remote -v` 与 README 第一行 | 待账号信息 |
 | 姓名命名的最终 ZIP | `prepare_submission.ps1` | README/视频校验后生成 `<姓名>.zip` | 待姓名 |
@@ -30,3 +31,4 @@
 - 字符预算是可解释的近似上下文预算，不是供应商 tokenizer 的精确 token 计数。
 - LRU 摘要只是工作记忆，编辑前仍要求重新读取文件，避免陈旧缓存成为事实来源。
 - 模型质量影响规划，但文件边界、工具执行、终止和证据验证由本地程序负责。
+- Web 控制台只监听 loopback，且同一工作区拒绝并发任务；它是可选界面，CLI 是核心执行入口。

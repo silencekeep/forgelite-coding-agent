@@ -6,7 +6,7 @@ ForgeLite 是一个仅用 Python 标准库实现的 coding agent。它通过 Ope
 
 ## 能做什么
 
-- 在指定工作区内列目录、读文件、写文件、精确替换文本、执行开发命令
+- 在指定工作区内列目录、搜索文本、读文件、写文件、精确替换文本、执行开发命令
 - 先查看代码，再修改，再运行测试，并基于真实命令输出汇报结果
 - 单次任务与持续多轮对话两种模式
 - 统一限制在 `--workspace` 目录；阻止路径穿越和少量明显危险的命令
@@ -14,6 +14,7 @@ ForgeLite 是一个仅用 Python 标准库实现的 coding agent。它通过 Ope
 - Low / Medium / High 思考强度：实际改变本地规划提示、默认回合数和上下文预算
 - 可选无密钥 JSONL 审计日志：记录回合、工具与成功状态，不保存 prompts、文件内容、命令输出或凭据
 - API 的超时、429/5xx 重试、工具参数错误和模型非标准参数名兼容处理
+- 浅层目录浏览、有限文本搜索和重复只读调用反馈，减少大仓库上下文浪费与无效循环
 
 ## 运行
 
@@ -39,6 +40,14 @@ coding-agent --workspace .\demo_target --thinking high --task "修复这个项�
 coding-agent --workspace .\demo_target
 ```
 
+可选的本地 Web 控制台会把腕表式 Low/Medium/High 选择器接到同一套真实 agent 配置，并展示无敏感内容工具时间线：
+
+```powershell
+coding-agent-web --workspace .\demo_target
+```
+
+控制台只监听 `127.0.0.1`，工作区在启动时固定；同一工作区同时只运行一个任务。
+
 密钥只从环境变量读取；请不要把它写进仓库、`.env`、README 或录屏。更多变量与录屏流程见 [docs/run-and-demo.md](docs/run-and-demo.md)。
 
 当 `CODING_AGENT_BASE_URL` 是 `localhost`、`127.0.0.1` 或 `::1` 时，ForgeLite 会自动绕过系统 HTTP 代理直连本地网关；远程 API 保持系统网络配置。
@@ -55,6 +64,8 @@ src/coding_agent/
   history.py      # 对话历史压缩
   lru_memory.py   # 最近使用工作记忆
   thinking.py     # Low / Medium / High 配置档
+  web.py          # 仅监听本机的可选 Web 控制台
+  web_assets/     # 腕表选择器与控制台静态资源
 tests/            # 不联网的单元测试
 demo_target/      # 视频中使用的真实小型修复任务
 docs/             # 设计、答辩和录屏材料
@@ -69,11 +80,13 @@ python -m unittest discover -s tests -v
 python -m compileall -q src
 ```
 
-测试集不仅覆盖单个工具，还包含“空工作区 → 创建实现、测试和 README → 执行测试 → 收到最终结论”的完整控制循环测试，因此无需 API key 也能复现 agent 的本地执行链路。
+测试集不仅覆盖单个工具，还包含 Web 请求边界和“空工作区 → 创建实现、测试和 README → 执行测试 → 收到最终结论”的完整控制循环测试，因此无需 API key 也能复现 agent 的本地执行链路。
 
 完整设计取舍、运行流程和面试准备见 [docs/design.md](docs/design.md) 与 [docs/interview-qa.md](docs/interview-qa.md)。
 
 真实模型从空工作区一次性生成待办项目的 7 回合验收记录见 [docs/evidence/one-shot-report.md](docs/evidence/one-shot-report.md)，对应结构化日志不含 prompt、文件内容或凭据。
+
+Web 控制台通过 `search_text` 定点分析当前仓库的 3 回合真实验收见 [docs/evidence/web-search-report.md](docs/evidence/web-search-report.md)。
 
 可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；运行 `./video_assets/render_demo_video.ps1` 会生成不含密钥的 1080p 演示视频。
 

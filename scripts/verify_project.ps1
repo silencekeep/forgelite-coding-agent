@@ -45,7 +45,7 @@ try {
         throw "Submission video is missing."
     }
 
-    Write-Host "PASS: 15 tests, compilation, README, credential scan, one-shot evidence, and video gates."
+    Write-Host "PASS: test suite, compilation, README, credential scan, one-shot evidence, and video gates."
     if (-not $SubmissionReady -and $readme -match '<请替换为你的账号>') {
         Write-Host "NOTE: replace the repository URL, then rerun with -SubmissionReady."
     }

@@ -11,12 +11,16 @@ readme = "README.md"
 
 [project.scripts]
 coding-agent = "coding_agent.cli:main"
+coding-agent-web = "coding_agent.web:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"coding_agent.web_assets" = ["*.html", "*.css", "*.js", "*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
