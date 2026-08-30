@@ -24,6 +24,12 @@ WorkspaceTools ←── JSON 参数解析、校验和本地执行 ── tool r
 
 这避免了两种常见问题：把“模型说已经改好”误认为成功，以及因模型不断调用工具而无限循环。
 
+## ReAct 与流式可观察性
+
+ForgeLite 的控制循环符合 ReAct 的工程形式：一次模型请求负责 Reason（决定下一步），原生 tool call 是 Act，本地 `ToolResult` 是 Observe；观察随后以对应 `tool_call_id` 写回历史，模型才能在下一轮调整行动。这里的 Reason 是“正在进行模型规划请求”的可审计状态，不等于公开模型内部的逐字思维链。系统既不要求模型输出隐藏推理，也不在界面中伪造它。
+
+`web.py` 保留一次性 JSON 端点用于兼容测试，同时提供手写的 `/api/run-stream` NDJSON 端点。`audit_sink` 每产生一个脱敏事件，HTTP handler 就立刻写出一行 JSON 并刷新缓冲区；浏览器用 `ReadableStream` 增量解析，依次渲染 Reason、Act、Observe 与 Finish。若流已经开始后出现模型错误或步数耗尽，服务端发送终止 `error` 记录，而不会错误地渲染最终成功。整个链路只依赖 Python 标准库与原生浏览器 API。
+
 ## 工具与安全边界
 
 六个工具为 `list_files`、`search_text`、`read_file`、`write_file`、`replace_in_file` 和 `run_command`。目录默认只列当前层，模型需要时再显式递归；文本搜索按路径、文件 glob 和结果数限制，避免为了定位一个符号而读取整棵目录。每个工具都带模型可见 schema，也在 Python 本地再次校验。所有实际读取或写入的文件路径经过 `Path.resolve()`，再以 `relative_to(workspace)` 检查，故 `../`、绝对路径和指向工作区外的文件链接不能绕过边界。

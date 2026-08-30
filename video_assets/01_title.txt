@@ -1,6 +1,6 @@
 ForgeLite
 
-从零实现的本地编程智能体
+浅色 ReAct 编程智能体
 
-软件工程推免项目演示
-Python 标准库 · 原生 Tool Calling · 无 Agent 框架
+真实 one-shot 工作过程
+原生 Tool Calling · 本地执行 · 无 Agent 框架

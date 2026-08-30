@@ -95,11 +95,23 @@ try {
     $video = Join-Path $root "deliverables\ForgeLite-demo.mp4"
     if (Test-Path -LiteralPath $video) {
         $ffprobe = (Get-Command ffprobe -ErrorAction Stop).Source
-        $metadata = & $ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 $video
-        $duration = [double](($metadata | Select-String '^duration=').ToString().Split('=')[1])
-        $size = [int64](($metadata | Select-String '^size=').ToString().Split('=')[1])
+        $probe = (& $ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,width,height -of json $video) |
+            ConvertFrom-Json
+        $duration = [double]$probe.format.duration
+        $size = [int64]$probe.format.size
         if ($duration -gt 120) { throw "Video exceeds 120 seconds: $duration." }
         if ($size -gt 200MB) { throw "Video exceeds 200 MB: $size bytes." }
+        $videoStream = @($probe.streams | Where-Object { $_.codec_type -eq "video" }) | Select-Object -First 1
+        $audioStream = @($probe.streams | Where-Object { $_.codec_type -eq "audio" }) | Select-Object -First 1
+        if (-not $videoStream -or $videoStream.codec_name -ne "h264") {
+            throw "Video must contain an H.264 video stream."
+        }
+        if ($videoStream.width -ne 1920 -or $videoStream.height -ne 1080) {
+            throw "Video must be 1920x1080; got $($videoStream.width)x$($videoStream.height)."
+        }
+        if (-not $audioStream -or $audioStream.codec_name -ne "aac") {
+            throw "Video must contain an AAC narration stream."
+        }
     }
     elseif ($SubmissionReady) {
         throw "Submission video is missing."

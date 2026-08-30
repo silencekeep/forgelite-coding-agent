@@ -22,13 +22,13 @@ $env:PYTHONPATH = "src"
 python -m unittest discover -s tests -v
 ```
 
-腕表式思考强度选择器已接入真实 agent，而非独立素材。可选 Web 控制台的启动方式为：
+腕表式思考强度选择器已接入真实 agent，而非独立素材。浅色 Web 工作台的启动方式为：
 
 ```powershell
 coding-agent-web --workspace .\demo_target
 ```
 
-它只监听 `127.0.0.1`，启动时固定工作区，并拒绝同一工作区的并发任务。浏览器时间线只显示事件名、工具名、成败和长度等审计字段，不展示 prompt、文件内容或密钥。
+它只监听 `127.0.0.1`，启动时固定工作区，并拒绝同一工作区的并发任务。浏览器通过 `/api/run-stream` 在任务运行中逐步显示 Reason、Act、Observe 和 Finish；时间线只使用事件名、工具名、成败和长度等审计字段，不展示 prompt、文件内容、隐藏思维链或密钥。
 
 ## 2. 推荐的视频演示任务
 
@@ -76,10 +76,10 @@ coding-agent --workspace .\demo_target --thinking high --max-steps 12 --audit-lo
 
 ## 4. 可复现 MP4 底片
 
-项目已提供不含密钥的 112 秒、1080p/H.264 视频底片。它以字幕呈现真实任务、工具循环、测试证据与设计讲解；生成命令为：
+项目已提供不含密钥的 112 秒、1080p/H.264 工作过程视频。它依次呈现真实任务、创建文件、首次测试失败、模型自行修正、测试通过和最终总结；实现讲解放在同一工作台画面的旁白中，而不是用大段幻灯片替代过程。生成命令为：
 
 ```powershell
 .\video_assets\render_demo_video.ps1
 ```
 
-会生成 `deliverables/ForgeLite-demo.mp4`，通常只有数 MB，远小于 200 MB 上限。脚本用 FFmpeg 生成字幕场景，让本机 Edge 无联网打开仓库内 HTML、截取 Web 控制台画面，再用 Windows 已安装的中文语音朗读 `video_assets/narration.md` 并合成 AAC 旁白；总时长仍为 112 秒。提交前建议用你自己的录音替换合成旁白，这样现场介绍更自然。若网关可用，也可在 24–78 秒处插入本机终端的实时 agent 录屏，更直观地证明 tool call 是实时发生的。无论采用何种剪辑，都不得显示密钥。
+会生成 `deliverables/ForgeLite-demo.mp4`，通常只有数 MB，远小于 200 MB 上限。脚本让本机 Edge 无联网渲染四个由真实审计轨迹构成的 UI 阶段，再用 FFmpeg 合成画面，并以 Windows 中文语音朗读 `video_assets/narration.md`；最终 AAC 旁白 110.28 秒，视频 112 秒，结尾不会被截断。提交前建议用你自己的录音替换合成旁白，这样现场介绍更自然。若网关可用，也可替换为相同任务的实时工作台录屏，但不得显示密钥。

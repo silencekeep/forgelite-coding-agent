@@ -13,6 +13,7 @@ ForgeLite 是一个仅用 Python 标准库实现的 coding agent。它通过 Ope
 - 本地历史压缩与 LRU 工作记忆：近期访问的文件/命令结果优先保留为短摘要
 - Low / Medium / High 思考强度：实际改变本地规划提示、默认回合数和上下文预算
 - 可选无密钥 JSONL 审计日志：记录回合、工具与成功状态，不保存 prompts、文件内容、命令输出或凭据
+- 浅色本地工作台通过 NDJSON 实时呈现 Reason（规划请求）、Act（工具调用）与 Observe（工具结果），不展示或伪造隐藏思维链
 - API 的超时、429/5xx 重试、工具参数错误和模型非标准参数名兼容处理
 - 浅层目录浏览、有限文本搜索/读取和重复只读调用反馈，减少大仓库上下文浪费与无效循环
 - 步数耗尽是显式失败（CLI 非零退出、Web 422），不会把部分改动误报为完成
@@ -41,13 +42,13 @@ coding-agent --workspace .\demo_target --thinking high --task "修复这个项�
 coding-agent --workspace .\demo_target
 ```
 
-可选的本地 Web 控制台会把腕表式 Low/Medium/High 选择器接到同一套真实 agent 配置，并展示无敏感内容工具时间线：
+可选的浅色 Web 工作台会把腕表式 Low/Medium/High 选择器接到同一套真实 agent 配置，并在 agent 工作时流式展示无敏感内容的 ReAct 时间线：
 
 ```powershell
 coding-agent-web --workspace .\demo_target
 ```
 
-控制台只监听 `127.0.0.1`，工作区在启动时固定；同一工作区同时只运行一个任务。
+控制台只监听 `127.0.0.1`，工作区在启动时固定；同一工作区同时只运行一个任务。浏览器使用手写的 `/api/run-stream` NDJSON 协议逐条读取事件，因此模型规划、工具执行、失败观察和后续修正会在任务结束前出现，而非完成后一次性回放。
 
 密钥只从环境变量读取；请不要把它写进仓库、`.env`、README 或录屏。更多变量与录屏流程见 [docs/run-and-demo.md](docs/run-and-demo.md)。
 
@@ -91,7 +92,7 @@ Web 控制台通过 `search_text` 定点分析当前仓库的 3 回合真实验�
 
 只从 tracked files 导出全新快照后重新测试并构建 wheel 的结果见 [docs/evidence/release-candidate-report.md](docs/evidence/release-candidate-report.md)。
 
-可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；在装有 FFmpeg、Edge 和中文系统语音的 Windows 上运行 `./video_assets/render_demo_video.ps1`，会生成不含密钥的 1080p 演示视频，自动嵌入本地 Web 控制台画面并合成中文旁白。
+可复现的两分钟内 MP4 底片和配音稿在 [video_assets](video_assets)；在装有 FFmpeg、Edge 和中文系统语音的 Windows 上运行 `./video_assets/render_demo_video.ps1`，会生成不含密钥的 1080p 工作过程视频，以任务、创建、失败修正和完成四个真实审计阶段为主体并合成中文旁白。
 
 账号与姓名相关的最终提交步骤见 [docs/submission-checklist.md](docs/submission-checklist.md)；`scripts/prepare_submission.ps1` 会检查 README、视频并生成姓名命名的 ZIP。
 
